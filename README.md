@@ -72,7 +72,7 @@ Project configuration alone does not prove SQL/Auth are set up. Cloud operations
 - Deleting a snapshot cascades to its rows.
 - Each account has a **private workspace**. This is not a shared-team data model; add memberships/RLS before enabling team sharing.
 - Sessions are remembered in the browser. Sign out on shared devices.
-- Public URL/key config is stored in localStorage. Unsaved local sales data is memory-only and is cleared on reload/sign-out.
+- Public URL/key config is stored in localStorage. Latest non-demo sales data is cached in IndexedDB, isolated by project + account (or local guest). A new valid upload replaces the cached dataset; invalid uploads preserve it. Signing out clears the active account cache and display. Do not use shared browser profiles for private sales data.
 - Vercel sets CSP, anti-framing, MIME and referrer-policy headers. HTTPS endpoints are allowed for user-configured Supabase projects; do not add untrusted third-party scripts.
 - GitHub/Vercel tokens and database secrets do not belong in this repository.
 
@@ -132,3 +132,17 @@ vercel.json           Build, routing and response headers
 ## Libraries
 
 Vite (MIT), Supabase JS (MIT), Chart.js (MIT), SheetJS CE 0.20.3 (Apache-2.0; official pinned distribution), Noto Sans Thai (SIL OFL 1.1).
+
+## Latest dataset + Group release
+
+- Startup is empty or restores the most recent real dataset; sample data is **opt-in only**.
+- “Latest” means the **entire latest uploaded file**, not just the last calendar day. A valid new file replaces the view; rows are never appended to an old file.
+- Without Supabase: the latest file persists only in this browser's IndexedDB. It is not a global default for other visitors/devices.
+- With configured Supabase + authenticated account: imports auto-save; startup automatically opens that account's latest activated Cloud dataset. Manual Save is available for retry. Offline/failed saves remain local and show an error.
+- Re-uploading identical content reactivates that snapshot as latest without duplicate sales rows. Older snapshots are retained privately in the DB, but the app library/view exposes only the latest. No destructive bulk delete is performed.
+- **Migration required:** re-run `supabase/setup.sql` on an existing BIC project to add `activated_at` and the updated atomic ingest RPC. Do not run against unrelated business projects. No live Supabase migration was applied by this release.
+- Latest is **per account**, not shared across accounts; team-wide sharing requires an explicit membership/RLS design.
+- Product Groups follow supplied exact names first, then ordered family rules. Gelato/slushy/bakery take precedence over sauce ingredients. Unknown products stay in `Unmapped / รอตรวจสอบ` and remain included in totals. Item view exports Group and Mapping provenance.
+- Group pie and table both use signed filtered Net Sales on the selected VAT basis; product search does not change the denominator. If any group is negative or the total is not positive, no misleading pie is drawn; the signed table remains available.
+- KPI order: Total Sales, Net quantity, Transaction · TC, Basket size · TA, Return, Discount rate.
+- Real POS workbook is not included in source or GitHub. The latest attachment was a screenshot only, which cannot supply line-item data.

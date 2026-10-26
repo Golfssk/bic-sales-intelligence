@@ -11,6 +11,7 @@ create table if not exists public.bic_imports (
  created_at timestamptz not null default now(),
  unique(owner_id,content_hash)
 );
+alter table public.bic_imports add column if not exists activated_at timestamptz not null default now();
 create table if not exists public.bic_sales_rows (
  id bigint generated always as identity primary key,
  import_id uuid not null references public.bic_imports(id) on delete cascade,
@@ -58,7 +59,17 @@ begin
  ) then raise exception 'Invalid sales row schema'; end if;
  -- Casting validates calendar dates and fails atomically on invalid values.
  perform (r->>'date')::date from jsonb_array_elements(p_rows) r;
- insert into public.bic_imports(owner_id,name,content_hash,row_count,meta) values(v_user,p_name,p_hash,v_count,p_meta) returning id into v_id;
+ -- Serialise same-owner uploads: latest activation wins, identical content never duplicates rows.
+ perform pg_advisory_xact_lock(hashtextextended(v_user::text,0));
+ select id into v_id from public.bic_imports where owner_id=v_user and content_hash=p_hash;
+ if v_id is not null then
+  if not exists(select 1 from public.bic_imports where id=v_id and row_count=v_count) or
+    (select jsonb_agg(payload order by id) from public.bic_sales_rows where import_id=v_id) is distinct from p_rows
+    then raise exception 'Hash collision or mismatched data'; end if;
+  update public.bic_imports set activated_at=clock_timestamp(),name=p_name,meta=p_meta where id=v_id;
+  return v_id;
+ end if;
+ insert into public.bic_imports(owner_id,name,content_hash,row_count,meta,activated_at) values(v_user,p_name,p_hash,v_count,p_meta,clock_timestamp()) returning id into v_id;
  insert into public.bic_sales_rows(import_id,payload) select v_id,r from jsonb_array_elements(p_rows) r;
  return v_id;
 end;
