@@ -18,7 +18,7 @@ import Chart from "chart.js/auto";
             "'": "&#39;",
           })[c],
       );
-  const nf = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }),
+  const nf = new Intl.NumberFormat("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
     intf = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
   const num = (v) => (v === null || !Number.isFinite(v) ? "—" : nf.format(v)),
     compact = (v) =>
@@ -577,7 +577,7 @@ import Chart from "chart.js/auto";
       ],
       [
         "Transaction · TC",
-        intf.format(s.tc),
+        num(s.tc),
         "tc",
         false,
         false,

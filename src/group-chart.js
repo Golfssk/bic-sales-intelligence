@@ -4,7 +4,7 @@ let chart = null;
 const fmt = (v) =>
   v == null
     ? "—"
-    : new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(v);
+    : new Intl.NumberFormat("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v);
 const esc = (v) =>
   String(v ?? "").replace(
     /[&<>"']/g,
