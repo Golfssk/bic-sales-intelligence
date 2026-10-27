@@ -18,7 +18,10 @@ import Chart from "chart.js/auto";
             "'": "&#39;",
           })[c],
       );
-  const nf = new Intl.NumberFormat("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+  const nf = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }),
     intf = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
   const num = (v) => (v === null || !Number.isFinite(v) ? "—" : nf.format(v)),
     compact = (v) =>
@@ -1055,6 +1058,25 @@ import Chart from "chart.js/auto";
       : "ยังไม่มีข้อมูล";
     $("selection").textContent = ` · ${intf.format(filtered.length)} รายการ`;
     $("basis").textContent = `${$("vat").checked ? "รวม" : "ไม่รวม"} VAT · THB`;
+    const active = [
+      ["weekday", "วัน"],
+      ["store", "สาขา"],
+      ["groupFilter", "Group"],
+      ["return", "ประเภทรายการ"],
+      ["unit", "หน่วย"],
+    ]
+      .filter(([id]) => $(id).value !== "all")
+      .map(([id, label]) => label + ": " + $(id).selectedOptions[0].text);
+    if ($("hourFrom").value !== "0" || $("hourTo").value !== "23")
+      active.push(
+        "ช่วงเวลา " +
+          $("hourFrom").selectedOptions[0].text +
+          "–" +
+          $("hourTo").selectedOptions[0].text,
+      );
+    $("globalFilterSummary").textContent = active.length
+      ? active.join(" · ")
+      : "ทุกวัน · ทุกสาขา · ทุก Group · ทุกประเภทรายการ";
     updateKPIs(lo, hi);
     updateCharts();
     renderGroupChart(filtered, $("vat").checked);
