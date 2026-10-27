@@ -9,7 +9,11 @@
   </head>
   <body>
     <div class="layout">
-      <aside class="sidebar" id="sidebar" aria-label="ตัวกรองข้อมูล">
+      <aside
+        class="sidebar"
+        id="sidebar"
+        aria-label="นำเข้าและจัดการไฟล์ข้อมูล"
+      >
         <div class="brand">
           <div class="brandmark">BIC</div>
           <div>
@@ -22,7 +26,7 @@
           id="toggleFilters"
           aria-expanded="false"
         >
-          แสดง / ซ่อนตัวกรอง
+          นำเข้าไฟล์ / ตั้งค่าการอ่านไฟล์
         </button>
         <div class="filterbody">
           <div class="upload">
@@ -54,73 +58,6 @@
               <option value="windows-874">Windows-874 / TIS-620</option>
             </select>
           </div>
-          <div class="filterhead">
-            <strong>ตัวกรองข้อมูล</strong
-            ><button class="textbtn" id="reset">รีเซ็ต</button>
-          </div>
-          <div class="field">
-            <label for="from">ช่วงวันที่เอกสาร</label>
-            <div class="datepair">
-              <input type="date" id="from" aria-label="วันเริ่มต้น" /><input
-                type="date"
-                id="to"
-                aria-label="วันสิ้นสุด"
-              />
-            </div>
-          </div>
-          <div class="field">
-            <label for="hourFrom">ช่วงเวลาสร้างรายการ</label>
-            <div class="row2">
-              <select id="hourFrom" aria-label="ชั่วโมงเริ่มต้น"></select
-              ><select id="hourTo" aria-label="ชั่วโมงสิ้นสุด"></select>
-            </div>
-            <div class="small">รองรับข้ามเที่ยงคืน เช่น 22 → 05</div>
-          </div>
-          <div class="field">
-            <label for="weekday">วันในสัปดาห์</label
-            ><select id="weekday">
-              <option value="all">ทุกวัน / All weekdays</option>
-              <option value="1">จันทร์</option>
-              <option value="2">อังคาร</option>
-              <option value="3">พุธ</option>
-              <option value="4">พฤหัสบดี</option>
-              <option value="5">ศุกร์</option>
-              <option value="6">เสาร์</option>
-              <option value="0">อาทิตย์</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="store">สาขา / Store</label
-            ><select id="store">
-              <option value="all">ทุกสาขา / All stores</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="return">สถานะรายการ</label
-            ><select id="return">
-              <option value="all">ทั้งหมด · Net Sales</option>
-              <option value="N">ขายปกติ (N)</option>
-              <option value="Y">คืนสินค้า (Y)</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="groupFilter">Group สินค้า</label
-            ><select id="groupFilter">
-              <option value="all">ทุก Group</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="unit">หน่วยสินค้า</label
-            ><select id="unit">
-              <option value="all">ทุกหน่วย / All units</option>
-            </select>
-          </div>
-          <div class="field">
-            <label class="checklabel"
-              ><input type="checkbox" id="vat" checked />รวม VAT / Inc.
-              VAT</label
-            >
-          </div>
           <div
             class="small"
             style="border-top: 1px solid var(--line); padding-top: 16px"
@@ -151,6 +88,112 @@
             ><button class="btn" id="demo">ทดลองข้อมูลจำลอง</button>
           </div>
         </header>
+        <section class="global-filters" aria-labelledby="globalFiltersHeading">
+          <div class="global-filter-header">
+            <div>
+              <div class="eyebrow">ONE VIEW. EVERY NUMBER.</div>
+              <h2 id="globalFiltersHeading">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <path d="M4 7h16M4 17h16M8 4v6M16 14v6" /></svg
+                >ตัวกรอง Dashboard
+              </h2>
+              <p class="small">
+                เลือกครั้งเดียว · ใช้กับ KPI กราฟ และตารางทั้งหมด
+              </p>
+            </div>
+            <button class="btn reset-global" id="reset" type="button">
+              รีเซ็ตตัวกรอง
+            </button>
+          </div>
+          <div class="global-filter-grid">
+            <div class="field filter-date">
+              <label for="from">ช่วงวันที่เอกสาร</label>
+              <div class="datepair">
+                <input aria-label="วันเริ่มต้น" id="from" type="date" /><input
+                  aria-label="วันสิ้นสุด"
+                  id="to"
+                  type="date"
+                />
+              </div>
+            </div>
+            <div class="field">
+              <label for="weekday">วันในสัปดาห์</label
+              ><select id="weekday">
+                <option value="all">ทุกวัน / All weekdays</option>
+                <option value="1">จันทร์</option>
+                <option value="2">อังคาร</option>
+                <option value="3">พุธ</option>
+                <option value="4">พฤหัสบดี</option>
+                <option value="5">ศุกร์</option>
+                <option value="6">เสาร์</option>
+                <option value="0">อาทิตย์</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="store">สาขา / Store</label
+              ><select id="store">
+                <option value="all">ทุกสาขา / All stores</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="groupFilter">Group สินค้า</label
+              ><select id="groupFilter">
+                <option value="all">ทุก Group</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="return">สถานะรายการ</label
+              ><select id="return">
+                <option value="all">ทั้งหมด · Net Sales</option>
+                <option value="N">ขายปกติ (N)</option>
+                <option value="Y">คืนสินค้า (Y)</option>
+              </select>
+            </div>
+          </div>
+          <div class="global-filter-bottom">
+            <span
+              id="globalFilterSummary"
+              class="filter-summary"
+              role="status"
+              aria-live="polite"
+              >กำลังแสดงข้อมูลตามตัวกรองด้านบน</span
+            >
+            <details class="extra-filters">
+              <summary>ตัวกรองเพิ่มเติม · เวลา / หน่วย / VAT</summary>
+              <div class="extra-filter-grid">
+                <div class="field">
+                  <label for="hourFrom">ช่วงเวลาสร้างรายการ</label>
+                  <div class="row2">
+                    <select aria-label="ชั่วโมงเริ่มต้น" id="hourFrom"></select
+                    ><select aria-label="ชั่วโมงสิ้นสุด" id="hourTo"></select>
+                  </div>
+                  <div class="small">รองรับข้ามเที่ยงคืน เช่น 22 → 05</div>
+                </div>
+                <div class="field">
+                  <label for="unit">หน่วยสินค้า</label
+                  ><select id="unit">
+                    <option value="all">ทุกหน่วย / All units</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label class="checklabel"
+                    ><input checked="" id="vat" type="checkbox" />รวม VAT / Inc.
+                    VAT</label
+                  >
+                </div>
+              </div>
+            </details>
+          </div>
+        </section>
+
         <div class="cloud-actions">
           <button class="btn primary" id="cloudSave" disabled>
             ↑ Save to cloud</button

@@ -146,3 +146,7 @@ Vite (MIT), Supabase JS (MIT), Chart.js (MIT), SheetJS CE 0.20.3 (Apache-2.0; of
 - Group pie and table both use signed filtered Net Sales on the selected VAT basis; product search does not change the denominator. If any group is negative or the total is not positive, no misleading pie is drawn; the signed table remains available.
 - KPI order: Total Sales, Net quantity, Transaction · TC, Basket size · TA, Return, Discount rate.
 - Real POS workbook is not included in source or GitHub. The latest attachment was a screenshot only, which cannot supply line-item data.
+
+## Global filter bar
+
+Date range, weekday, store, product Group and transaction type are always visible above the KPI cards (including mobile). They share the original single filter state and update KPIs, all charts, group share and performance tables together. Additional hour/unit/VAT controls expand within the same bar; Reset restores all filters. The sidebar now handles file import only. Numeric metrics retain one fixed decimal place.
