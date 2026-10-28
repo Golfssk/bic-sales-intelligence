@@ -62,7 +62,8 @@ import Chart from "chart.js/auto";
     columns = [],
     chartBuckets = [],
     charts = [],
-    stats = null;
+    stats = null,
+    hourDrill = null;
   const req = [
     "วันที่เอกสาร",
     "เลขที่เอกสาร",
@@ -430,6 +431,7 @@ import Chart from "chart.js/auto";
       : "";
   }
   function resetFilters() {
+    hourDrill = null;
     if (rows.length) {
       $("from").value = iso(new Date(extent[0]));
       $("to").value = iso(new Date(extent[1]));
@@ -447,7 +449,7 @@ import Chart from "chart.js/auto";
     render();
   }
   const value = (r) => ($("vat").checked ? r.inc : r.ex);
-  function selected(rs, lo, hi) {
+  function selected(rs, lo, hi, ignoreDrill = false) {
     const hf = +$("hourFrom").value,
       ht = +$("hourTo").value,
       full = hf === 0 && ht === 23;
@@ -455,6 +457,7 @@ import Chart from "chart.js/auto";
       (r) =>
         r.ms >= lo &&
         r.ms <= hi &&
+        (ignoreDrill || hourDrill === null || r.hour === hourDrill) &&
         ($("weekday").value === "all" || r.day === +$("weekday").value) &&
         ($("store").value === "all" || r.store === $("store").value) &&
         ($("return").value === "all" || r.status === $("return").value) &&
@@ -674,6 +677,59 @@ import Chart from "chart.js/auto";
       s: map.has(k) ? aggregate(map.get(k)) : null,
     }));
   }
+  function drillIntoHour(hour) {
+    if (
+      $("period").value !== "hourly" ||
+      !Number.isInteger(hour) ||
+      hour < 0 ||
+      hour > 23
+    )
+      return;
+    hourDrill = hour;
+    tab = "item";
+    page = 1;
+    sort = { key: "sales", asc: false };
+    $("search").value = "";
+    document.querySelectorAll("[data-tab]").forEach((b) => {
+      b.classList.toggle("active", b.dataset.tab === tab);
+      b.setAttribute("aria-pressed", String(b.dataset.tab === tab));
+    });
+    render();
+    requestAnimationFrame(() => {
+      $("hourDrillNotice").scrollIntoView({
+        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+        block: "start",
+      });
+    });
+  }
+  function renderHourDrill(lo, hi) {
+    const hourly = $("period").value === "hourly";
+    $("hourExplore").hidden = !hourly;
+    const available = [
+      ...new Set(
+        selected(rows, lo, hi, true)
+          .filter((r) => r.hour !== null)
+          .map((r) => r.hour),
+      ),
+    ].sort((a, b) => a - b);
+    $("hourDrillSelect").replaceChildren(
+      new Option("เลือกชั่วโมงเพื่อดูสินค้า", ""),
+      ...available.map(
+        (h) => new Option(pad(h) + ":00–" + pad(h) + ":59", String(h)),
+      ),
+    );
+    $("hourDrillSelect").value = hourDrill === null ? "" : String(hourDrill);
+    $("hourDrillSelect").disabled = !available.length;
+    $("hourDrillNotice").hidden = hourDrill === null;
+    if (hourDrill !== null) {
+      $("hourDrillText").textContent =
+        `กำลังดู ${pad(hourDrill)}:00–${pad(hourDrill)}:59 · ${dateText($("from").value)} – ${dateText($("to").value)} · รวมชั่วโมงนี้ของทุกวันที่เลือก`;
+      $("globalFilterSummary").textContent +=
+        " · เจาะชั่วโมง " + pad(hourDrill) + ":00–" + pad(hourDrill) + ":59";
+    }
+  }
   function makeChart(id, type, labels, data, color, unit) {
     const canvas = $(id);
     const count = unit === "บิล";
@@ -683,6 +739,28 @@ import Chart from "chart.js/auto";
       animation: false,
       layout: { padding: { top: id === "trend" ? 24 : 8, right: 12 } },
       interaction: { mode: "index", intersect: false },
+      onHover: (event, elements) => {
+        canvas.style.cursor =
+          $("period").value === "hourly" &&
+          elements.some((e) => data[e.index] !== null)
+            ? "pointer"
+            : "default";
+      },
+      onClick: (event, elements, chart) => {
+        const area = chart.chartArea;
+        if (
+          $("period").value !== "hourly" ||
+          event.x < area.left ||
+          event.x > area.right ||
+          event.y < area.top ||
+          event.y > area.bottom
+        )
+          return;
+        const hit = elements[0];
+        if (!hit || data[hit.index] === null) return;
+        const bucket = chartBuckets[hit.index];
+        if (bucket) drillIntoHour(bucket.key);
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -1030,6 +1108,10 @@ import Chart from "chart.js/auto";
     $("prev").disabled = page <= 1;
     $("next").disabled = page >= max;
     $("export").disabled = !tableRows.length;
+    $("performanceHeading").textContent =
+      hourDrill !== null && tab === "item"
+        ? `สินค้าที่ขาย ${pad(hourDrill)}:00–${pad(hourDrill)}:59`
+        : "Performance breakdown";
     $("tableCaption").textContent =
       tab === "matrix"
         ? "ยอดขายสุทธิ (THB) ตามชั่วโมง · รวมคอลัมน์ไม่ระบุเวลา"
@@ -1077,6 +1159,7 @@ import Chart from "chart.js/auto";
     $("globalFilterSummary").textContent = active.length
       ? active.join(" · ")
       : "ทุกวัน · ทุกสาขา · ทุก Group · ทุกประเภทรายการ";
+    renderHourDrill(lo, hi);
     updateKPIs(lo, hi);
     updateCharts();
     renderGroupChart(filtered, $("vat").checked);
@@ -1296,9 +1379,19 @@ import Chart from "chart.js/auto";
     "groupFilter",
   ])
     $(id).addEventListener("change", () => {
+      if (["period", "hourFrom", "hourTo"].includes(id)) hourDrill = null;
       page = 1;
       render();
     });
+  $("hourDrillSelect").onchange = () => {
+    if ($("hourDrillSelect").value !== "")
+      drillIntoHour(+$("hourDrillSelect").value);
+  };
+  $("clearHourDrill").onclick = () => {
+    hourDrill = null;
+    page = 1;
+    render();
+  };
   $("reset").onclick = resetFilters;
   $("demo").onclick = loadDemo;
   $("toggleFilters").onclick = () => {
