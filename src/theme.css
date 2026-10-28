@@ -34,3 +34,10 @@
 .sidebar-settings-actions .btn{width:100%;min-height:44px;font-size:12px}
 .main>.global-filters{margin-top:24px}
 @media(max-width:760px){.main>.global-filters{margin-top:18px}.sidebar-settings{margin-bottom:16px}}
+
+.hour-explore-toolbar{display:flex;gap:16px;align-items:center;justify-content:space-between;margin:0 0 16px;padding:12px 16px;background:#1ed7600b;border:1px solid #1ed76033;border-radius:8px}
+.hour-explore-toolbar p{font-size:13px;color:#c9ded0;margin:0}
+.hour-explore-toolbar select{width:auto;min-width:230px;max-width:100%;font-size:13px;min-height:44px;border-color:#516258;background:#19211b}
+.hour-drill-notice{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;background:#1b2b20;border-bottom:1px solid #1ed76044;scroll-margin-top:18px}
+.hour-drill-notice strong{font-size:13px;color:#1ed760}.hour-drill-notice p{font-size:13px;color:#e0ede4;margin:5px 0 0}.hour-drill-notice .btn{min-height:44px;flex-shrink:0;font-size:12px}
+@media(max-width:760px){.hour-explore-toolbar,.hour-drill-notice{flex-direction:column;align-items:stretch;gap:12px;padding:14px}.hour-explore-toolbar p,.hour-drill-notice p{font-size:12px}.hour-explore-toolbar select{width:100%;min-width:0}.hour-drill-notice .btn{align-self:flex-start}}

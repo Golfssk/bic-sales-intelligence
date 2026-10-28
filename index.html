@@ -58,14 +58,22 @@
               <option value="windows-874">Windows-874 / TIS-620</option>
             </select>
           </div>
-          <div class="sidebar-source"><span class="badge" id="sourceBadge">ยังไม่มีข้อมูลจริง</span></div>
+          <div class="sidebar-source">
+            <span class="badge" id="sourceBadge">ยังไม่มีข้อมูลจริง</span>
+          </div>
           <details class="sidebar-settings">
             <summary>เครื่องมือและการเชื่อมต่อ</summary>
             <div class="sidebar-settings-actions">
-              <button id="cloudSetup" class="btn" type="button">Connect Supabase</button>
+              <button id="cloudSetup" class="btn" type="button">
+                Connect Supabase
+              </button>
               <button id="cloudAuth" class="btn" type="button">Sign in</button>
-              <button id="cloudLibrary" class="btn" type="button">Data library</button>
-              <button id="demo" class="btn" type="button">ทดลองข้อมูลจำลอง</button>
+              <button id="cloudLibrary" class="btn" type="button">
+                Data library
+              </button>
+              <button id="demo" class="btn" type="button">
+                ทดลองข้อมูลจำลอง
+              </button>
             </div>
           </details>
           <div
@@ -229,6 +237,15 @@
               </select>
             </div>
           </div>
+          <div class="hour-explore-toolbar" id="hourExplore">
+            <p>คลิกแท่งหรือจุดบนกราฟ เพื่อดูสินค้าที่ขายในชั่วโมงนั้น</p>
+            <label class="a11y" for="hourDrillSelect"
+              >เลือกชั่วโมงเพื่อดูรายการสินค้า</label
+            >
+            <select id="hourDrillSelect">
+              <option value="">เลือกชั่วโมงเพื่อดูสินค้า</option>
+            </select>
+          </div>
           <div class="chartgrid">
             <article class="panel">
               <div class="paneltitle">
@@ -339,6 +356,15 @@
           <p id="mappingNotice" class="small"></p>
         </section>
         <section class="panel tablepanel" aria-labelledby="performanceHeading">
+          <div id="hourDrillNotice" class="hour-drill-notice" hidden>
+            <div>
+              <strong>Hourly detail</strong>
+              <p id="hourDrillText" role="status" aria-live="polite"></p>
+            </div>
+            <button id="clearHourDrill" class="btn" type="button">
+              กลับไปช่วงเวลาเดิม
+            </button>
+          </div>
           <div class="tabletools">
             <div class="sectionhead">
               <div>
