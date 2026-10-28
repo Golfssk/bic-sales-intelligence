@@ -25,3 +25,12 @@
 @media(max-width:1200px){.global-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.global-filter-grid .filter-date{grid-column:1/-1}.global-filter-grid .datepair{max-width:500px}}
 @media(max-width:760px){.global-filters{margin-top:24px;padding:18px 16px 14px;border-radius:10px}.global-filter-header{align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:18px}.global-filter-header h2{font-size:20px}.global-filter-header p{font-size:12px}.global-filter-header .eyebrow{font-size:9px}.reset-global{font-size:11px;padding:8px 12px;min-height:44px}.global-filter-grid{gap:16px 12px}.global-filters .field label{font-size:12px}.global-filters .field input,.global-filters .field select{font-size:12px;min-height:46px;padding:8px}.global-filter-bottom{display:block}.filter-summary{display:block;margin-bottom:12px;font-size:11px}.extra-filter-grid{grid-template-columns:1fr}.global-filters .datepair{max-width:none}.sidebar .mobilefilter{font-size:12px}}
 @media print{.global-filters{display:none}}
+
+/* Compact workspace: no hero/header; account tools live in the import sidebar. */
+.sidebar-source{margin:16px 0 8px}.sidebar-source .badge{max-width:100%;white-space:normal;font-size:10px;line-height:1.6}
+.sidebar-settings{margin:10px 0 18px;border-top:1px solid #ffffff14;border-bottom:1px solid #ffffff14;padding:4px 0}
+.sidebar-settings summary{font-size:12px;min-height:44px;line-height:24px;padding:10px 0;color:#ccc}
+.sidebar-settings-actions{display:grid;gap:8px;padding:0 0 14px}
+.sidebar-settings-actions .btn{width:100%;min-height:44px;font-size:12px}
+.main>.global-filters{margin-top:24px}
+@media(max-width:760px){.main>.global-filters{margin-top:18px}.sidebar-settings{margin-bottom:16px}}
