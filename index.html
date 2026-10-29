@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#121212" />
-    <title>BIC · Sales Intelligence</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>เด็กสมบูรณ์ · Sales Intelligence</title>
+    <link rel="icon" type="image/svg+xml" href="/deksomboon-logo.svg" />
   </head>
   <body>
     <div class="layout">
@@ -15,7 +15,7 @@
         aria-label="นำเข้าและจัดการไฟล์ข้อมูล"
       >
         <div class="brand">
-          <div class="brandmark">BIC</div>
+          <img class="brand-logo" src="/deksomboon-logo.svg" alt="ตราเด็กสมบูรณ์ Dek Som Boon" width="64" height="64" />
           <div>
             <strong>Sales Intelligence</strong>
             <div class="eyebrow">RETAIL PERFORMANCE</div>
@@ -65,9 +65,9 @@
             <summary>เครื่องมือและการเชื่อมต่อ</summary>
             <div class="sidebar-settings-actions">
               <button id="cloudSetup" class="btn" type="button">
-                Connect Supabase
+                ตั้งค่า Cloud
               </button>
-              <button id="cloudAuth" class="btn" type="button">Sign in</button>
+              <button id="cloudAuth" class="btn" type="button">เข้าสู่ระบบ</button>
               <button id="cloudLibrary" class="btn" type="button">
                 Data library
               </button>
@@ -81,7 +81,7 @@
             style="border-top: 1px solid var(--line); padding-top: 16px"
           >
             อัปโหลดใหม่แทนชุดเดิม ไม่บวกซ้ำ<br /><span id="cacheStatus"
-              >จำชุดล่าสุดใน browser นี้ · Cloud แยกตามบัญชี</span
+              >เข้าสู่ระบบก่อนนำเข้า · ไฟล์ที่ผ่านตรวจจะอัปโหลดอัตโนมัติ</span
             >
           </div>
         </div>
@@ -230,7 +230,7 @@
 
         <div class="cloud-actions">
           <button class="btn primary" id="cloudSave" disabled>
-            ↑ Save to cloud</button
+            เข้าสู่ระบบเพื่ออัปโหลด</button
           ><span id="cloudStatus">กำลังตรวจชุดข้อมูลล่าสุด…</span>
         </div>
         <div id="cloudMessage" role="status" aria-live="polite"></div>
@@ -521,7 +521,7 @@
           </ul>
         </details>
         <footer class="footer">
-          <span>BIC / Sales Intelligence · Local-first analytics</span
+          <span>เด็กสมบูรณ์ / Sales Intelligence</span
           ><span
             >Vercel + Supabase · Not affiliated with Spotify or Lotus’s</span
           >

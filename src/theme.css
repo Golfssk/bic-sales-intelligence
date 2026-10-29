@@ -57,3 +57,11 @@
 .global-filters .group-check-all{border-bottom:1px solid #ffffff1a;border-radius:0;margin-bottom:4px;font-weight:600}
 .group-checkbox-menu .textbtn{display:block;width:100%;min-height:44px;text-align:left;padding:10px 8px;color:#b9c8be;border-top:1px solid #ffffff1a;margin-top:4px}
 @media(max-width:760px){.group-filter-label{font-size:12px}.group-multiselect>summary{font-size:12px}.group-checkbox-menu{left:0;right:auto;width:calc(100vw - 64px);max-height:340px}.global-filters .group-checkbox-row{font-size:13px}}
+
+/* Original logo supplied by the workspace owner; no recoloring or distortion. */
+.brand .brand-logo{display:block;width:64px;height:64px;flex:0 0 64px;object-fit:contain;background:transparent;border-radius:0}
+.brand>div{min-width:0}.brand strong{font-size:14px}.brand .eyebrow{font-size:9px;letter-spacing:1px}
+[hidden]{display:none!important}
+.dialog-field input{min-height:46px;font-size:16px}.dialog-copy{font-size:14px;line-height:1.65}
+.cloud-actions #cloudStatus{line-height:1.6;overflow-wrap:anywhere}
+@media(max-width:760px){.brand .brand-logo{width:58px;height:58px;flex-basis:58px}.brand strong{font-size:16px}.brand .eyebrow{font-size:10px}}
