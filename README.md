@@ -1,7 +1,7 @@
 # BIC · Sales Intelligence
 
-Spotify-inspired dark retail dashboard. **Vite SPA + Supabase Auth/Postgres + Vercel**.
-This release keeps the existing dashboard calculation engine and separates Cloud integration into a module.
+Dark retail analytics workbench. **Vite SPA + Supabase Auth/Postgres + Vercel**.
+The workbench keeps the existing calculation engine and separates analysis views from on-demand workspace tools. See [UX workbench](docs/UX-WORKBENCH.md).
 Not affiliated with Spotify or Lotus’s. Uses Arial + embedded Noto Sans Thai, not proprietary Spotify fonts.
 
 ## Local development
@@ -38,7 +38,7 @@ No old-project records or Auth users are migrated automatically. Do not delete t
 ## Import → automatic Cloud save → latest-only display
 
 - Sign in, then choose Excel/CSV. Valid real data automatically uploads; no separate Save click is needed.
-- Wait for **CLOUD · บันทึกชุดล่าสุดแล้ว** before closing the page. Reading a file successfully is not confirmation that it reached Cloud.
+- Open **สถานะข้อมูล** and wait for **CLOUD · บันทึกชุดล่าสุดแล้ว** before closing the page. Reading a file successfully is not confirmation that it reached Cloud.
 - If not signed in, imported data stays local. Sign in to upload the current session's import.
 - Invalid core rows or failed uploads **do not replace the prior Cloud dataset**. Fix the file or use the retry button. Source files should be retained.
 - New uploads replace the active view; historical snapshots are retained separately, never added to the current totals.
@@ -58,7 +58,7 @@ No old-project records or Auth users are migrated automatically. Do not delete t
 - RLS restricts reads/deletes to the authenticated owner. Direct row inserts/updates are denied.
 - Anonymous users cannot read or write Cloud records.
 - Deleting a snapshot cascades to its rows.
-- Each account has a **private workspace**. This is not a shared-team data model; add memberships/RLS before enabling team sharing.
+- Each account starts in a **private workspace**. Team sharing requires intentional workspace selection and membership; server-side RLS/RPC checks enforce admin/uploader/viewer roles. Existing private files are not automatically shared.
 - Sessions are remembered in the browser. Sign out on shared devices.
 - Public URL/key config is stored in localStorage. Latest non-demo sales data is cached in IndexedDB, isolated by project + account (or local guest). A new valid upload replaces the cached dataset; invalid uploads preserve it. Signing out clears the active account cache and display. Do not use shared browser profiles for private sales data.
 - Vercel sets CSP, anti-framing, MIME and referrer-policy headers. HTTPS endpoints are allowed for user-configured Supabase projects; do not add untrusted third-party scripts.
@@ -111,7 +111,9 @@ index.html            Dashboard markup
 src/dashboard.js      Existing import/filter/KPI/chart/table engine + Cloud adapter
 src/cloud.js          Supabase Auth, config dialog, snapshots, paginated reads
 src/base.css          Base responsive styles and embedded Thai font
-src/theme.css         Spotify-inspired surfaces, green accent and pill components
+src/theme.css         Base dark surfaces and green accent
+src/workbench.js      Primary views and modal workspace-tools inspector
+src/workbench.css     Responsive desktop rail and mobile workbench
 supabase/setup.sql    Tables, RLS and atomic import RPC
 tests/                Database and configuration tests
 vercel.json           Build, routing and response headers
@@ -121,23 +123,17 @@ vercel.json           Build, routing and response headers
 
 Vite (MIT), Supabase JS (MIT), Chart.js (MIT), SheetJS CE 0.20.3 (Apache-2.0; official pinned distribution), Noto Sans Thai (SIL OFL 1.1).
 
-## Latest dataset + Group release
+## Latest dataset, Groups and filters
 
-- Startup is empty or restores the most recent real dataset; sample data is **opt-in only**.
-- “Latest” means the **entire latest uploaded file**, not just the last calendar day. A valid new file replaces the view; rows are never appended to an old file.
-- Without Supabase: the latest file persists only in this browser's IndexedDB. It is not a global default for other visitors/devices.
-- With configured Supabase + authenticated account: imports auto-save; startup automatically opens that account's latest activated Cloud dataset. Manual Save is available for retry. Offline/failed saves remain local and show an error.
-- Re-uploading identical content reactivates that snapshot as latest without duplicate sales rows. Older snapshots are retained privately in the DB, but the app library/view exposes only the latest. No destructive bulk delete is performed.
-- **Migration required:** re-run `supabase/setup.sql` on an existing BIC project to add `activated_at` and the updated atomic ingest RPC. Do not run against unrelated business projects. No live Supabase migration was applied by this release.
-- Latest is **per account**, not shared across accounts; team-wide sharing requires an explicit membership/RLS design.
-- Product Groups follow supplied exact names first, then ordered family rules. Gelato/slushy/bakery take precedence over sauce ingredients. Unknown products stay in `Unmapped / รอตรวจสอบ` and remain included in totals. Item view exports Group and Mapping provenance.
-- Group pie and table both use signed filtered Net Sales on the selected VAT basis; product search does not change the denominator. If any group is negative or the total is not positive, no misleading pie is drawn; the signed table remains available.
-- KPI order: Total Sales, Net quantity, Transaction · TC, Basket size · TA, Return, Discount rate.
-- Real POS workbook is not included in source or GitHub. The latest attachment was a screenshot only, which cannot supply line-item data.
-
-## Global filter bar
-
-Date range, weekday, store, product Group and transaction type are always visible above the KPI cards (including mobile). They share the original single filter state and update KPIs, all charts, group share and performance tables together. Additional hour/unit/VAT controls expand within the same bar; Reset restores all filters. The sidebar now handles file import only. Numeric metrics retain one fixed decimal place.
+- A valid upload replaces the entire current dataset; it never appends to old totals.
+- Latest activation is scoped to a private account or deliberately selected team workspace.
+- Historical snapshots are retained separately; explicit restore is permission-checked.
+- Exact/family Group rules retain unmapped products in totals. Signed Group shares use
+  the selected VAT basis; product search does not change their denominator.
+- Global date, weekday, store, Group and transaction filters share one state across
+  views. Expand the top filter bar to edit them; hour/unit/VAT controls remain there.
+- Metrics retain one decimal place. Missing denominators remain —, not invented zeroes.
+- Current schema/account setup is documented above and in [BI workspace](docs/BI-WORKSPACE.md).
 
 ## Regression checks
 
@@ -148,17 +144,16 @@ With the development server running on port 4174, run
 upload, latest-only mobile restore, failure/retry and invalid-import checks.
 It never writes to production. Set `CHROMIUM_PATH` if Chromium is not on PATH.
 
-## Mobile workspace
+## Responsive workspace
 
-At 760px and below the UI uses collapsible filters, charts, group sales and
-performance sections. A bottom navigation bar opens the overview, charts or
-details. Existing data-level tabs become a collapsible picker; item and group
-rows are displayed as cards with expandable extra fields. Search, sorting,
-CSV export and pagination still use the original calculation engine. Hourly
-matrix retains its horizontally scrollable table, with the store name pinned.
-Clicking an hour opens the item details section automatically. Desktop keeps
-its original tables and tab controls. No Cloud schema or formula changes.
+Desktop has a collapsible left rail, four primary analysis views, and a closable
+right-side tool inspector. Mobile uses compact bottom navigation and a full-screen
+tool sheet. Cloud/import messages, comparison, quality checks, receipts and team
+settings live in tool tabs rather than forming a long inline page.
+Filters, charts and detail pickers remain expandable. Tables become searchable,
+sortable cards on mobile; hourly matrix retains horizontal scrolling. Hour clicks
+open the matching item detail view without changing the calculation engine.
 
-Start the development server and run `node tests/browser-mobile.cjs` for
-synthetic mobile interaction tests at 320–1440px and high-DPI screenshots.
-Set `CHROMIUM_PATH`, `TEST_BASE_URL` or `SMOKE_OUTPUT` as needed.
+See [UX workbench](docs/UX-WORKBENCH.md) for workflows and keyboard controls.
+Run `node tests/browser-workbench.cjs` and `node tests/browser-mobile.cjs` against
+a local dev server. Set `CHROMIUM_PATH`, `TEST_BASE_URL`, `SMOKE_OUTPUT` as needed.
