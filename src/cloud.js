@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import setupSQL from "../supabase/setup.sql?raw";
+import baseSQL from "../supabase/setup.sql?raw";
+import teamSQL from "../supabase/migrations/20261030_bi_workspaces.sql?raw";
+const setupSQL=baseSQL+"\n"+teamSQL;
 import { PROJECT_URL, PROJECT_CONFIG, pickProjectConfig, uploadProblem } from "./cloud-config.js";
 const STORAGE = "bic.project.v1";
 export function validateConfig(c) {
@@ -52,7 +54,9 @@ export function initCloud(api) {
     subscription = null,
     pendingSave = false,
     saveFailed = false,
-    restoring = false;
+    restoring = false,
+    workspace = null,
+    scopeUser = null;
   const $ = (id) => document.getElementById(id),
     message = (text, error = false) => {
       const p = el("div", text, "cloud-notice" + (error ? " error" : ""));
@@ -74,6 +78,9 @@ export function initCloud(api) {
     save.hidden = !!currentId || (!!user && !saveFailed) || d.isDemo;
     save.disabled = busy;
     save.textContent = !config ? "ตั้งค่า Cloud" : !user ? "เข้าสู่ระบบเพื่ออัปโหลด" : "ลองอัปโหลดอีกครั้ง";
+    const viewer = workspace?.role === 'viewer';
+    if(viewer) save.hidden=true;
+    $("file").disabled = busy || viewer;
     $("cloudAuth").textContent = user ? "ออกจากระบบ" : "เข้าสู่ระบบ";
     $("cloudAuth").disabled = busy;
     $("cloudSetup").disabled = busy;
@@ -105,9 +112,11 @@ export function initCloud(api) {
   };
   async function refreshLibrary() {
     const gen = generation, activeClient = client;
-    const { data, error } = await activeClient
+    let query = activeClient
       .from("bic_imports")
-      .select("id,name,row_count,meta,content_hash,created_at,activated_at")
+      .select("id,name,row_count,meta,content_hash,created_at,activated_at,workspace_id,owner_id");
+    query = workspace ? query.eq("workspace_id",workspace.id) : query.is("workspace_id",null);
+    const {data,error} = await query
       .order("activated_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(1);
@@ -117,17 +126,34 @@ export function initCloud(api) {
     return data;
   }
   function announceSession() {
+    window.dispatchEvent(new CustomEvent("bic:cloud-context"));
     window.dispatchEvent(
       new CustomEvent("bic:session-ready", {
-        detail: { project: config?.url || PROJECT_URL, user: user?.id },
+        detail: { project: (config?.url || PROJECT_URL)+(workspace ? "::team:"+workspace.id : ""), user: user?.id },
       }),
     );
+  }
+  async function chooseScope() {
+    if(!user || scopeUser===user.id) return;
+    const uid=user.id, gen=generation, activeClient=client;
+    const preferred=localStorage.getItem('bic.workspace.'+uid);
+    let next=null;
+    if(preferred) {
+      const {data,error}=await activeClient.from('bic_workspaces').select('id,name').eq('id',preferred).maybeSingle();
+      if(error) throw error;
+      if(gen!==generation || user?.id!==uid)return;
+      if(data){const role=await activeClient.rpc('bic_role',{p_workspace:data.id}); if(role.error)throw role.error; if(role.data)next={...data,role:role.data};}
+      else localStorage.removeItem('bic.workspace.'+uid);
+    }
+    if(gen!==generation || user?.id!==uid)return;
+    workspace=next;scopeUser=uid;announceSession();
   }
   async function restoreCloud() {
     if (restoring || busy || !client || !user) return;
     restoring = true;
     const gen = generation, ref = api.getData().rows;
     try {
+      await chooseScope();
       await refreshLibrary();
       if (gen !== generation) return;
       const d = api.getData();
@@ -152,6 +178,7 @@ export function initCloud(api) {
     subscription?.unsubscribe();
     if (client) client.auth.stopAutoRefresh();
     config = c;
+    scopeUser = null;
     user = null;
     currentId = null;
     library = [];
@@ -178,6 +205,7 @@ export function initCloud(api) {
       const old = user;
       user = session?.user || null;
       if (event === "SIGNED_OUT" && old) {
+        workspace=null; scopeUser=null;
         api.clearData();
         library = [];
         currentId = null;
@@ -189,7 +217,6 @@ export function initCloud(api) {
       }
       if (event === "SIGNED_IN" && old?.id !== user?.id) {
         if (old && old.id !== user?.id) api.clearData();
-        announceSession();
         setTimeout(() => restoreCloud(), 0);
       }
     });
@@ -199,7 +226,7 @@ export function initCloud(api) {
     if (error) throw error;
     user = session.session?.user || null;
     updateUI();
-    announceSession();
+    if(!user) announceSession();
     if (user) {
       await restoreCloud();
     }
@@ -217,7 +244,7 @@ export function initCloud(api) {
     step1.append(el("strong", "01 · Create project & database"));
     const p = el(
       "p",
-      "ฐานข้อมูลของ Project ใหม่นี้สร้างแล้ว ปุ่ม SQL ด้านล่างสำหรับผู้ดูแลกรณีต้องติดตั้งซ้ำ ไม่ต้องลบ Project เก่า",
+      "Project นี้ติดตั้งแล้ว ไม่ต้องรัน SQL อีก · SQL ด้านล่างใช้เฉพาะฐานข้อมูลว่างครั้งแรกเท่านั้น ห้ามรันซ้ำกับฐานที่มีระบบทีม ให้ใช้ migration ตาม README",
     );
     const a = el("a", "เปิด Supabase dashboard");
     a.href = "https://supabase.com/dashboard";
@@ -359,7 +386,7 @@ export function initCloud(api) {
         password.value = "";
         if (error) throw error;
         if (gen !== generation) return;
-        user = data.user; updateUI(); announceSession(); d.close();
+        user = data.user; updateUI(); d.close();
         message("เข้าสู่ระบบแล้ว · ไฟล์ใหม่จะอัปโหลดอัตโนมัติ");
         setTimeout(restoreCloud, 0);
       } catch (error) {
@@ -410,6 +437,7 @@ export function initCloud(api) {
       lastRows = rows;
       currentId = item.id;
       saveFailed = false;
+      window.dispatchEvent(new CustomEvent('bic:snapshot',{detail:item}));
       dialog?.close();
       message("เปิดชุดข้อมูลจาก Supabase แล้ว");
     } catch (e) {
@@ -481,7 +509,8 @@ export function initCloud(api) {
             remove.disabled = false;
           }
         };
-        actions.append(open, remove);
+        actions.append(open);
+        if(!workspace || workspace.role==='admin') actions.append(remove);
         box.append(actions);
         content.append(box);
       }
@@ -521,6 +550,7 @@ export function initCloud(api) {
       pendingSave = true;
       return;
     }
+    if(workspace?.role==='viewer'){message('Viewer ดูรายงานได้อย่างเดียว กรุณาให้ Admin/Uploader อัปโหลด',true);return;}
     if (d.isDemo || !d.rows.length || currentId) return;
     const problem = uploadProblem(d);
     if (problem) { saveFailed = true; message(problem, true); updateUI(); return; }
@@ -538,7 +568,8 @@ export function initCloud(api) {
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
       if (gen !== generation) return;
-      const { data: id, error } = await activeClient.rpc("bic_ingest", {
+      const { data: id, error } = await activeClient.rpc(workspace ? "bic_ingest_team" : "bic_ingest", {
+        ...(workspace ? {p_workspace:workspace.id} : {}),
         p_name: d.source.slice(0, 255),
         p_hash: hash,
         p_rows: d.rows,
@@ -548,6 +579,7 @@ export function initCloud(api) {
       if (gen !== generation) return;
       if (api.getData().rows === d.rows) {
         currentId = id;
+        window.dispatchEvent(new CustomEvent('bic:snapshot',{detail:{id,name:d.source,owner_id:user.id,row_count:d.rows.length,activated_at:new Date().toISOString()}}));
         api.markCloudSaved?.(d.rows, new Date().toISOString());
         message(
           "บันทึกชุดล่าสุดบน Cloud แล้ว · เปิดเว็บครั้งหน้าจะใช้ชุดนี้ ไม่รวมชุดเก่า",
@@ -581,7 +613,7 @@ export function initCloud(api) {
       !d.isDemo &&
       d.rows.length &&
       client &&
-      user
+      user && workspace?.role!=="viewer"
     )
       setTimeout(saveLatest, 0);
     else if (changed && d.origin === "local" && !d.isDemo && d.rows.length)
@@ -593,6 +625,32 @@ export function initCloud(api) {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") restoreCloud();
   });
+  window.BIC_CLOUD = {
+    context:()=>({client,user,workspace,currentId,busy}),
+    refresh:()=>restoreCloud(),
+    open:(item)=>openSnapshot(item,null),
+    async restore(id) {
+      if(busy||restoring)throw Error('รอ Cloud ทำงานเสร็จก่อนคืนข้อมูล');
+      if(!user)throw Error('เข้าสู่ระบบก่อน');
+      const gen=generation, activeClient=client;
+      busy=true;updateUI();
+      try {
+        const {error}=await activeClient.rpc('bic_activate_import',{p_import:id});
+        if(error)throw error;
+        if(gen!==generation)return;
+        api.clearData();currentId=null;
+      } finally {if(gen===generation){busy=false;updateUI()}}
+      if(gen===generation)await restoreCloud();
+    },
+    async setWorkspace(next) {
+      if(busy||restoring)throw Error('รอ Cloud ทำงานเสร็จก่อนเปลี่ยนทีม');
+      if(!user)throw Error('เข้าสู่ระบบก่อน');
+      if(next) localStorage.setItem('bic.workspace.'+user.id,next.id);
+      else localStorage.removeItem('bic.workspace.'+user.id);
+      api.clearData();workspace=next;scopeUser=null;
+      await connect(config);
+    }
+  };
   updateUI();
   try {
     const stored = localStorage.getItem(STORAGE),

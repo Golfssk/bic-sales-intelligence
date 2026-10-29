@@ -11,3 +11,8 @@ describe('Project migration and safe automatic upload',()=>{
  it('does not upload demos or empty data',()=>{expect(uploadProblem({isDemo:true,rows:[{}]})).toBeTruthy();expect(uploadProblem({rows:[]})).toBeTruthy()});
  it('enforces row count limit',()=>expect(uploadProblem({rows:Array(25001).fill({})})).toContain('25,000'));
 });
+describe('Source footer upload gate',()=>{
+ it('blocks mismatches rather than replacing the latest Cloud snapshot',()=>expect(uploadProblem({rows:[{inc:107}],schema:{sourceTotals:{inc:214}},issues:{summary:1}})).toContain('ไม่แทนชุด Cloud เดิม'));
+ it('permits matching independent footer controls',()=>expect(uploadProblem({rows:[{inc:107}],schema:{sourceTotals:{inc:107}},issues:{summary:1}})).toBeNull());
+ it('does not label incomplete optional numeric fields a matching control',()=>expect(uploadProblem({rows:[{disc:null}],schema:{sourceTotals:{disc:0}},issues:{summary:1}})).toContain('ข้อมูลไม่ครบ'));
+});

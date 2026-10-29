@@ -19,6 +19,11 @@ export function uploadProblem(data) {
   );
   if (rejected)
     return `พบข้อมูลหลักไม่ถูกต้อง ${rejected} แถว จึงยังไม่แทนชุด Cloud เดิม กรุณาตรวจรายงานคุณภาพและแก้ไฟล์ก่อนอัปโหลดใหม่`;
+  if ((data.issues?.summary || 0) <= 1) {
+    const controls = Object.entries(data.schema?.sourceTotals || {}).filter(([,v])=>Number.isFinite(v));
+    if (controls.some(([field,expected])=>!data.rows.every(r=>Number.isFinite(r[field])) || Math.abs(data.rows.reduce((s,r)=>s+r[field],0)-expected)>.05))
+      return "ยอดรวมแถวจริงไม่ตรงหรือข้อมูลไม่ครบเทียบกับสรุปท้ายไฟล์ จึงยังไม่แทนชุด Cloud เดิม กรุณาตรวจผล Reconciliation";
+  }
   if (data.rows.length > 25000)
     return "Cloud รองรับไม่เกิน 25,000 รายการต่อชุด กรุณาแบ่งไฟล์";
   if (new TextEncoder().encode(JSON.stringify(data.rows)).byteLength > 4_900_000)
