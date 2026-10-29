@@ -25,13 +25,13 @@ The app opens with the latest dataset for the signed-in account, or an empty vie
 
 ## One-time account setup (administrator)
 
-The database schema is in `supabase/setup.sql`; it has already been applied to the project above.
+The base schema and `supabase/migrations/20261030_bi_workspaces.sql` have been applied to the project above. Do not rerun base setup on an existing database. For a brand-new empty database only, run `setup.sql` then the migration, in that order.
 
 1. Supabase project → **Authentication → Users → Add user → Create new user**.
 2. Choose the intended user's email and a strong password. Confirm the email only for an identity the administrator has verified. This is not an email invitation or OTP flow.
 3. Enable the Email provider with password sign-in. The app does not register accounts. For internal use, disable public signups after provisioning users.
 4. On the website, open **เข้าสู่ระบบ** and sign in with that email and password. No email link or SMTP delivery is required for password sign-in. Account recovery still requires a configured provider/email process.
-5. Use the **same account** on mobile and computer. Accounts are isolated, not a shared-team workspace.
+5. Use the **same account** on mobile and computer for private snapshots, or select the same team workspace with separate member accounts. Existing private files are never automatically shared.
 
 No old-project records or Auth users are migrated automatically. Do not delete the old project until a deliberate migration has been verified.
 
@@ -78,7 +78,7 @@ Header must appear within the first 50 rows. Duplicate headers are rejected.
 - Identical rows are reported but not deleted automatically.
 - Sales = signed SUM of selected VAT basis.
 - Return rate = ABS(Y total) / N total × 100, not net sales as denominator.
-- Discount = discount on N / before-discount amount on N. Falls back to `มูลค่าขายก่อนส่วนลด` only if the primary column is absent. VAT toggle does not invent a new tax basis for discounts.
+- Discount = SUM `มูลค่าส่วนลด` on N / SUM `มูลค่าขายก่อนส่วนลด` on N, both ex VAT. Never divide an ex-VAT numerator by an inc-VAT denominator. Older normalized snapshots without `beforeEx` show — until the original file is reimported. VAT toggle does not change this ratio.
 - TC = distinct (store, document) on N; TA = Net Sales/TC; UPT = net quantity/TC. No denominator means —.
 - Mixed units must not be read as total physical pieces.
 - Per-day KPIs use selected calendar days, including days without rows, with the weekday filter applied.
