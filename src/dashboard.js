@@ -744,6 +744,7 @@ import Chart from "chart.js/auto";
       b.setAttribute("aria-pressed", String(b.dataset.tab === tab));
     });
     render();
+    window.dispatchEvent(new Event("bic:hour-selected"));
     requestAnimationFrame(() => {
       $("hourDrillNotice").scrollIntoView({
         behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
