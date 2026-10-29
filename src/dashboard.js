@@ -256,6 +256,7 @@ import Chart from "chart.js/auto";
         optionalNumber: 0,
         duplicate: 0,
         blank: 0,
+        summary: 0,
       },
       out = [],
       seen = new Set();
@@ -268,6 +269,18 @@ import Chart from "chart.js/auto";
       const get = (k) => a[idx[k]],
         txt = (k) => norm(display?.[i]?.[idx[k]] ?? get(k));
       const doc = txt("เลขที่เอกสาร");
+      // Explicit export totals are not malformed POS transactions. Keep real
+      // rejected rows separate so they can block automatic cloud replacement.
+      if (
+        !norm(get("วันที่เอกสาร")) &&
+        !txt("ร้านค้า") && !txt("สินค้า") && !txt("ชื่อสินค้า") &&
+        !norm(get("คืนสินค้า")) &&
+        (/^Count\s*=\s*[\d,]+$/i.test(doc) ||
+          (!doc && ["จำนวน", "มูลค่าขาย"].some((k) => norm(get(k)) !== "")))
+      ) {
+        bad.summary++;
+        continue;
+      }
       if (!doc) {
         bad.noDoc++;
         continue;
@@ -1506,6 +1519,13 @@ import Chart from "chart.js/auto";
       origin: dataOrigin,
       cachedAt,
     }),
+    markCloudSaved: (savedRows, timestamp) => {
+      if (rows !== savedRows) return;
+      dataOrigin = "cloud";
+      cachedAt = timestamp;
+      $("sourceBadge").textContent = "CLOUD · ข้อมูลล่าสุด";
+      window.dispatchEvent(new Event("bic:change"));
+    },
     loadData: (d) => {
       book = null;
       $("sheetField").hidden = true;
