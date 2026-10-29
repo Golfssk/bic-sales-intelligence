@@ -430,6 +430,29 @@ import Chart from "chart.js/auto";
       ? `<details class="notice"><summary>รายงานคุณภาพข้อมูล · ${notes.length} ประเด็น (คลิกดู)</summary><ul>${notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></details>`
       : "";
   }
+  function selectedGroups() {
+    return new Set(
+      [...$("groupChoices").querySelectorAll("input:checked")].map(
+        (c) => c.value,
+      ),
+    );
+  }
+  function syncGroupPicker() {
+    const groups = selectedGroups(),
+      all = groups.size === GROUPS.length;
+    $("groupAll").checked = all;
+    $("groupAll").indeterminate = groups.size > 0 && !all;
+    $("groupFilterText").textContent = all
+      ? "ทุก Group"
+      : groups.size === 0
+        ? "ยังไม่เลือก Group"
+        : groups.size === 1
+          ? [...groups][0]
+          : `เลือก ${groups.size} Group`;
+    $("groupFilterToggle").title = all
+      ? "ทุก Group"
+      : [...groups].join(", ") || "ยังไม่เลือก Group";
+  }
   function resetFilters() {
     hourDrill = null;
     if (rows.length) {
@@ -441,8 +464,12 @@ import Chart from "chart.js/auto";
     }
     $("hourFrom").value = "0";
     $("hourTo").value = "23";
-    for (const k of ["weekday", "store", "return", "unit", "groupFilter"])
-      $(k).value = "all";
+    for (const k of ["weekday", "store", "return", "unit"]) $(k).value = "all";
+    $("groupChoices")
+      .querySelectorAll("input")
+      .forEach((c) => (c.checked = true));
+    syncGroupPicker();
+    $("groupFilter").open = false;
     $("vat").checked = true;
     $("search").value = "";
     page = 1;
@@ -452,7 +479,8 @@ import Chart from "chart.js/auto";
   function selected(rs, lo, hi, ignoreDrill = false) {
     const hf = +$("hourFrom").value,
       ht = +$("hourTo").value,
-      full = hf === 0 && ht === 23;
+      full = hf === 0 && ht === 23,
+      groups = selectedGroups();
     return rs.filter(
       (r) =>
         r.ms >= lo &&
@@ -462,8 +490,7 @@ import Chart from "chart.js/auto";
         ($("store").value === "all" || r.store === $("store").value) &&
         ($("return").value === "all" || r.status === $("return").value) &&
         ($("unit").value === "all" || r.unit === $("unit").value) &&
-        ($("groupFilter").value === "all" ||
-          classifyProduct(r.name).group === $("groupFilter").value) &&
+        groups.has(classifyProduct(r.name).group) &&
         (full ||
           (r.hour !== null &&
             (hf <= ht
@@ -1143,12 +1170,17 @@ import Chart from "chart.js/auto";
     const active = [
       ["weekday", "วัน"],
       ["store", "สาขา"],
-      ["groupFilter", "Group"],
       ["return", "ประเภทรายการ"],
       ["unit", "หน่วย"],
     ]
       .filter(([id]) => $(id).value !== "all")
       .map(([id, label]) => label + ": " + $(id).selectedOptions[0].text);
+    const groups = selectedGroups();
+    if (groups.size !== GROUPS.length)
+      active.push(
+        "Group: " +
+          (groups.size ? [...groups].join(", ") : "ยังไม่เลือก Group"),
+      );
     if ($("hourFrom").value !== "0" || $("hourTo").value !== "23")
       active.push(
         "ช่วงเวลา " +
@@ -1376,13 +1408,39 @@ import Chart from "chart.js/auto";
     "vat",
     "period",
     "metric",
-    "groupFilter",
   ])
     $(id).addEventListener("change", () => {
       if (["period", "hourFrom", "hourTo"].includes(id)) hourDrill = null;
       page = 1;
       render();
     });
+  $("groupFilter").addEventListener("change", (e) => {
+    if (e.target.id === "groupAll")
+      $("groupChoices")
+        .querySelectorAll("input")
+        .forEach((c) => (c.checked = e.target.checked));
+    syncGroupPicker();
+    page = 1;
+    render();
+  });
+  $("clearGroups").onclick = () => {
+    $("groupChoices")
+      .querySelectorAll("input")
+      .forEach((c) => (c.checked = false));
+    syncGroupPicker();
+    page = 1;
+    render();
+  };
+  document.addEventListener("click", (e) => {
+    if (!$("groupFilter").contains(e.target)) $("groupFilter").open = false;
+  });
+  $("groupFilter").addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      $("groupFilter").open = false;
+      $("groupFilterToggle").focus();
+      e.preventDefault();
+    }
+  });
   $("hourDrillSelect").onchange = () => {
     if ($("hourDrillSelect").value !== "")
       drillIntoHour(+$("hourDrillSelect").value);
@@ -1496,6 +1554,10 @@ import Chart from "chart.js/auto";
     }),
     loadDemo,
   };
-  $("groupFilter").append(...GROUPS.map((g) => new Option(g, g)));
+  $("groupChoices").innerHTML = GROUPS.map(
+    (g, i) =>
+      `<label class="group-checkbox-row"><input type="checkbox" id="groupChoice${i}" value="${esc(g)}" checked /><span>${esc(g)}</span></label>`,
+  ).join("");
+  syncGroupPicker();
   render();
 })();
