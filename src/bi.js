@@ -120,6 +120,7 @@ function initWorkspace(api,onSettings){
  async function save(next){const c=ctx();await call('bic_save_settings',{p_workspace:c.workspace.id,p_config:next,p_version:version});await load();tell('บันทึกการตั้งค่ากลางแล้ว · มีประวัติก่อน/หลังให้ตรวจสอบ');}
  async function members(){const c=ctx(),key=c.workspace?.id;if(!key)return;const data=await call('bic_list_members',{p_workspace:key});if(ctx().workspace?.id!==key)return;$('biMemberList').innerHTML=table(['อีเมล','สิทธิ์'],data.map(m=>row(esc(m.email),esc(m.role))).join(''))}
  window.addEventListener('bic:cloud-context',load);
+ window.addEventListener('bic:workspace-open',()=>{if(!working)load()});
  root.addEventListener('toggle',()=>{if(root.open)load()});
  // Refresh central settings after returning from another device/admin change.
  window.addEventListener('focus',()=>{if(root.open&&!working)load()});
