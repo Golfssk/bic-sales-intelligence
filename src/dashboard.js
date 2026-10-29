@@ -63,7 +63,8 @@ import Chart from "chart.js/auto";
     chartBuckets = [],
     charts = [],
     stats = null,
-    hourDrill = null;
+    hourDrill = null,
+    exploreFilter = null;
   const req = [
     "วันที่เอกสาร",
     "เลขที่เอกสาร",
@@ -258,6 +259,7 @@ import Chart from "chart.js/auto";
         blank: 0,
         summary: 0,
       },
+      sourceTotals = {},
       out = [],
       seen = new Set();
     for (let i = hi + 1; i < matrix.length; i++) {
@@ -279,6 +281,9 @@ import Chart from "chart.js/auto";
           (!doc && ["จำนวน", "มูลค่าขาย"].some((k) => norm(get(k)) !== "")))
       ) {
         bad.summary++;
+        for(const [field,column] of Object.entries({qty:'จำนวน',ex:'มูลค่าขาย',inc:'มูลค่าขายรวม Vat.',vat:'มูลค่า VAT',disc:'มูลค่าส่วนลด',beforeEx:'มูลค่าขายก่อนส่วนลด'})) {
+          const amount=parseNumber(get(column)); if(amount!==null) sourceTotals[field]=amount;
+        }
         continue;
       }
       if (!doc) {
@@ -333,6 +338,8 @@ import Chart from "chart.js/auto";
         inc,
         disc,
         before,
+        beforeEx: parseNumber(get('มูลค่าขายก่อนส่วนลด')),
+        vat: parseNumber(get('มูลค่า VAT')),
         reason: txt("หมายเหตุยกเลิก") || "ไม่ระบุหมายเหตุ",
         ref: txt("เอกสารอ้างอิง"),
       });
@@ -346,6 +353,8 @@ import Chart from "chart.js/auto";
       issues: bad,
       schema: {
         absent,
+        sourceTotals,
+        discountBasis: idx["มูลค่าขายก่อนส่วนลด"] !== undefined ? "ex" : "unavailable",
         beforeKey,
         discount: idx["มูลค่าส่วนลด"] !== undefined,
       },
@@ -435,10 +444,8 @@ import Chart from "chart.js/auto";
       );
     if (schema.absent?.length)
       notes.push("ไม่พบคอลัมน์เสริม: " + schema.absent.join(", "));
-    if (schema.beforeKey === "มูลค่าขายก่อนส่วนลด")
-      notes.push(
-        "ฐาน Discount ใช้ “มูลค่าขายก่อนส่วนลด” เพราะไม่มี “มูลค่าก่อนส่วนลด”",
-      );
+    if (rows.some(r=>r.status==='N' && !Number.isFinite(r.beforeEx)))
+      notes.push("Discount rate ต้องใช้ส่วนลดและฐานก่อนส่วนลดแบบไม่รวม VAT เหมือนกัน · ชุดเก่าที่ไม่มีฐานนี้จะแสดง — กรุณานำเข้าไฟล์ต้นฉบับใหม่");
     $("dataNotice").innerHTML = notes.length
       ? `<details class="notice"><summary>รายงานคุณภาพข้อมูล · ${notes.length} ประเด็น (คลิกดู)</summary><ul>${notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></details>`
       : "";
@@ -468,6 +475,7 @@ import Chart from "chart.js/auto";
   }
   function resetFilters() {
     hourDrill = null;
+    exploreFilter = null;
     if (rows.length) {
       $("from").value = iso(new Date(extent[0]));
       $("to").value = iso(new Date(extent[1]));
@@ -496,6 +504,7 @@ import Chart from "chart.js/auto";
       groups = selectedGroups();
     return rs.filter(
       (r) =>
+        (!exploreFilter || (exploreFilter.kind === "sku" ? r.sku === exploreFilter.value && (!exploreFilter.name || r.name===exploreFilter.name) : exploreFilter.kind === "store" ? r.store===exploreFilter.value : classifyProduct(r.name).group===exploreFilter.value)) &&
         r.ms >= lo &&
         r.ms <= hi &&
         (ignoreDrill || hourDrill === null || r.hour === hourDrill) &&
@@ -530,10 +539,10 @@ import Chart from "chart.js/auto";
       if (r.status === "N") {
         normal += v;
         bills.add(r.key);
-        if (r.disc === null || r.before === null) discountOK = false;
+        if (!Number.isFinite(r.disc) || !Number.isFinite(r.beforeEx)) discountOK = false;
         else {
           disc += r.disc;
-          before += r.before;
+          before += r.beforeEx;
         }
       } else {
         ret += v;
@@ -1188,6 +1197,7 @@ import Chart from "chart.js/auto";
     ]
       .filter(([id]) => $(id).value !== "all")
       .map(([id, label]) => label + ": " + $(id).selectedOptions[0].text);
+    if (exploreFilter) active.push("เจาะ: " + (exploreFilter.name || exploreFilter.value));
     const groups = selectedGroups();
     if (groups.size !== GROUPS.length)
       active.push(
@@ -1333,7 +1343,9 @@ import Chart from "chart.js/auto";
                 inc,
                 ex,
                 before: before * sgn,
-                disc: discount * sgn,
+                disc: (discount / 1.07) * sgn,
+                beforeEx: (before / 1.07) * sgn,
+                vat: inc-ex,
                 reason:
                   status === "Y"
                     ? rand() < 0.5
@@ -1510,6 +1522,11 @@ import Chart from "chart.js/auto";
   };
   $("export").onclick = exportCSV;
   window.BIC_APP = {
+    getView: () => ({ filtered, stats, hourDrill, from: $("from").value, to: $("to").value, basis: $("vat").checked ? "inc" : "ex", full: ["weekday","store","return","unit"].every(id=>$(id).value==='all') && selectedGroups().size===GROUPS.length && $("hourFrom").value==='0' && $("hourTo").value==='23' && hourDrill===null && !exploreFilter }),
+    selectRange: (rs,lo,hi) => selected(rs,lo,hi),
+    refresh: () => render(),
+    setExplore: (filter) => { exploreFilter=filter;page=1;render(); },
+    getExplore: () => exploreFilter,
     getData: () => ({
       rows,
       issues,
