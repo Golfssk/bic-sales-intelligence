@@ -147,3 +147,18 @@ With the development server running on port 4174, run
 `node tests/browser-cloud.cjs` for synthetic mocked password-login, automatic
 upload, latest-only mobile restore, failure/retry and invalid-import checks.
 It never writes to production. Set `CHROMIUM_PATH` if Chromium is not on PATH.
+
+## Mobile workspace
+
+At 760px and below the UI uses collapsible filters, charts, group sales and
+performance sections. A bottom navigation bar opens the overview, charts or
+details. Existing data-level tabs become a collapsible picker; item and group
+rows are displayed as cards with expandable extra fields. Search, sorting,
+CSV export and pagination still use the original calculation engine. Hourly
+matrix retains its horizontally scrollable table, with the store name pinned.
+Clicking an hour opens the item details section automatically. Desktop keeps
+its original tables and tab controls. No Cloud schema or formula changes.
+
+Start the development server and run `node tests/browser-mobile.cjs` for
+synthetic mobile interaction tests at 320–1440px and high-DPI screenshots.
+Set `CHROMIUM_PATH`, `TEST_BASE_URL` or `SMOKE_OUTPUT` as needed.

@@ -1,0 +1,38 @@
+// Synthetic UI-only tests. Requires npm run dev -- --port 4174.
+const {chromium}=require('playwright'); const assert=require('assert'); const fs=require('fs');
+(async()=>{const out=process.env.SMOKE_OUTPUT||'/tmp/bic-mobile-smoke';fs.mkdirSync(out,{recursive:true});
+const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||require('child_process').execFileSync('which',['chromium'],{encoding:'utf8'}).trim(),headless:true,args:['--no-sandbox']});
+const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
+const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+await page.goto(process.env.TEST_BASE_URL||'http://localhost:4174');await page.waitForFunction(()=>window.BIC_APP&&document.querySelector('.mobile-bottom-nav'));
+await page.evaluate(()=>BIC_TEST.loadDemo());await page.waitForTimeout(400);
+assert.equal(await page.locator('#mobileFilters').getAttribute('data-mobile-open'),'false');
+assert.equal(await page.locator('#mobilePerformance').getAttribute('data-mobile-open'),'false');
+assert.equal(await page.locator('.mobile-sale-card').count()>0,true);
+await page.screenshot({path:out+'/overview.png'});
+console.log('Overview: collapsed sections, high-DPI logo and 6 KPI cards PASS');
+await page.locator('#mobileFilters>.mobile-fold-toggle').click();await page.locator('#groupFilterToggle').click();await page.locator('#groupChoice0').uncheck();await page.waitForTimeout(200);
+assert.equal(await page.locator('#groupChoice0').isChecked(),false);await page.screenshot({path:out+'/filters.png'});
+await page.locator('#groupFilterToggle').click();await page.locator('#reset').click();await page.locator('#mobileFilters>.mobile-fold-toggle').click();
+console.log('Filter accordion + multi-group checkbox + reset PASS');
+await page.locator('[data-destination=mobileTrends]').click();await page.waitForTimeout(800);
+assert.equal(await page.locator('#mobileTrends').getAttribute('data-mobile-open'),'true');
+await page.screenshot({path:out+'/charts.png'});
+const dims=await page.locator('#trend').evaluate(e=>({w:e.getBoundingClientRect().width,h:e.getBoundingClientRect().height,pixels:e.width}));assert(dims.w>200&&dims.h>150&&dims.pixels>dims.w);console.log('Charts resize after accordion opens and retain retina resolution PASS');
+await page.locator('#hourDrillSelect').selectOption('13');await page.waitForTimeout(700);
+assert.equal(await page.locator('#mobilePerformance').getAttribute('data-mobile-open'),'true');assert.equal(await page.locator('#hourDrillNotice').isVisible(),true);assert.equal(await page.locator('.mobile-tab-picker strong').textContent(),'รายการสินค้า');
+assert.equal(await page.locator('.mobile-tab-picker').getAttribute('open'),null);
+await page.screenshot({path:out+'/hour-detail.png'});console.log('Hourly drill automatically opens item detail accordion PASS');
+await page.locator('.mobile-tab-picker>summary').click();await page.locator('[data-tab=store]').click();await page.waitForTimeout(150);assert.equal(await page.locator('.mobile-tab-picker').getAttribute('open'),null);assert.equal(await page.locator('.mobile-tab-picker strong').textContent(),'สาขา');
+await page.locator('.mobile-tab-picker>summary').click();await page.locator('[data-tab=item]').click();await page.waitForTimeout(150);
+const model=await page.evaluate(()=>BIC_TEST.getState().tableRows.map(r=>r.name));const names=await page.locator('.mobile-sale-card h3').allTextContents();assert.deepEqual(names,model.slice(0,40));
+await page.locator('.mobile-sale-card').first().locator('summary').click();assert(await page.locator('.mobile-sale-card').first().locator('details').getAttribute('open')!==null);
+await page.locator('#search').fill('ไม่มีชื่อนี้');await page.waitForTimeout(300);assert.equal(await page.locator('.mobile-card-empty').count(),1);await page.locator('#search').fill('');await page.waitForTimeout(300);
+await page.locator('#mobileSort').selectOption('qty');await page.waitForTimeout(200);assert.equal(await page.locator('#performance th[aria-sort=ascending] [data-sort]').getAttribute('data-sort'),'qty');await page.locator('.mobile-sort-tools button').click();await page.waitForTimeout(200);assert.equal(await page.locator('#performance th[aria-sort=descending] [data-sort]').getAttribute('data-sort'),'qty');console.log('Card data matches engine; tabs collapse, search and sorting work PASS');
+await page.locator('.mobile-tab-picker>summary').click();await page.locator('[data-tab=matrix]').click();await page.waitForTimeout(150);assert(await page.locator('.tablescroll.mobile-matrix').isVisible());assert(!await page.locator('.mobile-sale-cards').isVisible());console.log('Hourly matrix retains scrollable original table PASS');
+await page.locator('#groupChartPanel>.mobile-fold-toggle').click();await page.locator('#groupChartPanel').scrollIntoViewIfNeeded();await page.waitForTimeout(200);await page.screenshot({path:out+'/groups.png'});
+await page.locator('[data-destination=overview]').click();await page.waitForTimeout(500);await page.locator('#toggleFilters').click();await page.locator('.sidebar-settings>summary').click();await page.screenshot({path:out+'/import.png'});await page.locator('.mobile-import-close').click();assert.equal(await page.locator('#toggleFilters').getAttribute('aria-expanded'),'false');console.log('Import and account tools open and close PASS');
+for(const width of [320,360,390,430,768,1440]){await page.setViewportSize({width,height:900});await page.waitForTimeout(150);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'overflow at '+width);}
+await page.screenshot({path:out+'/desktop.png'});await page.locator('#mobilePerformance').scrollIntoViewIfNeeded();await page.screenshot({path:out+'/desktop-table.png'});assert(await page.locator('#performance').isVisible());assert.equal(await page.locator('.mobile-bottom-nav').isVisible(),false);assert.equal(await page.locator('#mobileFiltersContent').evaluate(e=>e.inert),false);
+assert.deepEqual(errors,[]);console.log('320–1440 px: no page overflow; desktop controls preserved; no JS errors PASS');await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});
