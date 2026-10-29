@@ -7,3 +7,5 @@ import { initMobile } from './mobile.js';
 initLatest(window.BIC_APP);
 initCloud(window.BIC_APP);
 initMobile();
+import { initBI } from './bi.js';
+initBI(window.BIC_APP);

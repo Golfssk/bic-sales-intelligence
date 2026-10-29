@@ -54,6 +54,7 @@ export function renderGroupChart(rows, vat = true) {
         ],
       },
       options: {
+        onClick: (_event, elements) => { if(elements.length) { const value=usable[elements[0].index].group; queueMicrotask(()=>window.dispatchEvent(new CustomEvent("bic:explore",{detail:{kind:"group",value}}))); } },
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
@@ -74,7 +75,7 @@ export function renderGroupChart(rows, vat = true) {
     result.groups
       .map(
         (g) =>
-          `<tr><td><span class="group-swatch" style="background:${GROUP_COLORS[GROUPS.indexOf(g.group)]}"></span>${esc(g.group)}</td><td class="num ${g.sales < 0 ? "neg" : ""}">${fmt(g.sales)}</td><td class="num">${fmt(g.share)}${g.share === null ? "" : "%"}</td><td class="num">${fmt(g.products)}</td></tr>`,
+          `<tr data-bi-group="${esc(g.group)}"><td><span class="group-swatch" style="background:${GROUP_COLORS[GROUPS.indexOf(g.group)]}"></span><button type="button" class="bi-group-button" aria-label="เจาะ Group ${esc(g.group)}">${esc(g.group)}</button></td><td class="num ${g.sales < 0 ? "neg" : ""}">${fmt(g.sales)}</td><td class="num">${fmt(g.share)}${g.share === null ? "" : "%"}</td><td class="num">${fmt(g.products)}</td></tr>`,
       )
       .join("") || '<tr><td colspan="4" class="empty">ยังไม่มีข้อมูล</td></tr>';
   const unmapped = result.groups.find((g) => g.group === GROUPS.at(-1));

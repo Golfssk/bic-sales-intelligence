@@ -68,6 +68,11 @@ const EXACT = [
   ["Fresh Coconut", ["มะพร้าวลูก laser 1ลูก"]],
   ["Other Beverages & Retail", ["สินค้า 17 บาท", "เบียร์ช้างใหญ่"]],
 ];
+let overrides = new Map();
+export function setMappingOverrides(mapping={}) {
+  overrides = new Map(Object.entries(mapping).filter(([,group])=>GROUPS.includes(group)).map(([name,group])=>[normalizeProduct(name),group]));
+  cache.clear();
+}
 const exactMap = new Map(
   EXACT.flatMap(([group, names]) =>
     names.map((name) => [normalizeProduct(name), group]),
@@ -112,6 +117,7 @@ export function classifyProduct(name) {
   const key = normalizeProduct(name);
   if (cache.has(key)) return cache.get(key);
   let result;
+  if(overrides.has(key)) return {group:overrides.get(key),method:'Workspace mapping',reason:'ผู้ดูแลกำหนดในทีม'};
   if (exactMap.has(key))
     result = {
       group: exactMap.get(key),
