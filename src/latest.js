@@ -2,7 +2,8 @@
 export function initLatest(api) {
   let scope = null,
     epoch = 0,
-    last = api.getData().rows;
+    last = api.getData().rows,
+    lastOrigin = api.getData().origin;
   const dbp = new Promise((resolve, reject) => {
     const r = indexedDB.open("bic-latest-v1", 1);
     r.onupgradeneeded = () => r.result.createObjectStore("latest");
@@ -26,7 +27,7 @@ export function initLatest(api) {
   }
   const warn = () => {
     document.getElementById("cacheStatus").textContent =
-      "เก็บใน browser ไม่สำเร็จ · อย่าปิดหน้าก่อน Save to cloud หรือเก็บไฟล์ต้นฉบับ";
+      "เก็บใน browser ไม่สำเร็จ · รอจนขึ้น CLOUD บันทึกแล้ว และเก็บไฟล์ต้นฉบับไว้";
   };
   window.addEventListener("bic:session-ready", async (e) => {
     const next =
@@ -45,8 +46,9 @@ export function initLatest(api) {
   });
   api.subscribe(() => {
     const d = api.getData();
-    if (d.rows === last) return;
+    if (d.rows === last && d.origin === lastOrigin) return;
     last = d.rows;
+    lastOrigin = d.origin;
     ++epoch;
     if (!scope || d.isDemo) return;
     const target = scope;

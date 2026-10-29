@@ -12,55 +12,43 @@ npm run dev
 ```
 
 Node.js 22.12+ recommended. `npm run build` produces `dist/`.
-The app opens with clearly labelled DEMO data. DEMO is never saved to Cloud.
+The app opens with the latest dataset for the signed-in account, or an empty view. DEMO is explicit and is never saved to Cloud.
 
-## 1. Deploy this GitHub repository on Vercel
+## Deploy on Vercel
 
-1. Open https://vercel.com/new and select `Golfssk/bic-sales-intelligence`.
-2. Framework: **Vite**; Root Directory: repository root.
-3. Build: `npm run build`; Output: `dist` (already configured in `vercel.json`).
-4. Deploy. No environment variables are needed to try DEMO or local Excel/CSV import.
-5. Copy the deployed HTTPS URL for Supabase Auth configuration below.
+1. Import `Golfssk/bic-sales-intelligence` at https://vercel.com/new.
+2. Framework: **Vite**, repository root, build `npm run build`, output `dist`.
+3. Production project is **gknqdodyvejvdlaxucrs** at https://gknqdodyvejvdlaxucrs.supabase.co.
+   Its browser-safe publishable key and URL are built into `src/cloud-config.js`, so every device uses the same project without manual configuration.
+4. Optional public Vercel variables are supported only for this project. Old project environment variables and browser settings are ignored.
+5. Never put service-role keys, secret API keys, database passwords or personal tokens in source or VITE_* variables.
 
-To preconfigure the same Supabase project for every browser, optionally set these PUBLIC Vercel environment variables and redeploy:
+## One-time account setup (administrator)
 
-```text
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_REPLACE_ME
-```
+The database schema is in `supabase/setup.sql`; it has already been applied to the project above.
 
-NEVER use `service_role`, `sb_secret_…`, database passwords, or personal access tokens in VITE_* variables or source code.
-The in-app Connect dialog overrides environment configuration for that browser only.
+1. Supabase project → **Authentication → Users → Add user → Create new user**.
+2. Choose the intended user's email and a strong password. Confirm the email only for an identity the administrator has verified. This is not an email invitation or OTP flow.
+3. Enable the Email provider with password sign-in. The app does not register accounts. For internal use, disable public signups after provisioning users.
+4. On the website, open **เข้าสู่ระบบ** and sign in with that email and password. No email link or SMTP delivery is required for password sign-in. Account recovery still requires a configured provider/email process.
+5. Use the **same account** on mobile and computer. Accounts are isolated, not a shared-team workspace.
 
-## 2. Set up Supabase
+No old-project records or Auth users are migrated automatically. Do not delete the old project until a deliberate migration has been verified.
 
-1. Create a project at https://supabase.com/dashboard.
-2. SQL Editor → run the **entire** `supabase/setup.sql` file once.
-   The app also offers **Connect Supabase → Copy setup SQL / Download SQL**.
-3. Project Settings → API Keys: copy Project URL + **Publishable** key (legacy anon key also supported).
-4. Authentication → URL Configuration:
-   - Site URL: your actual Vercel URL.
-   - Redirect URLs: `https://YOUR_DEPLOYMENT.vercel.app/`.
-   - For local development add `http://localhost:5173/`.
-5. Enable Email provider; **Invite users** through Authentication → Users.
-   The app uses `shouldCreateUser: false` and does not auto-register public visitors.
-6. For an internal tool, disable public signups in Supabase once users are provisioned.
-7. Production email delivery may require custom SMTP. Check Supabase Auth logs, recipient/rate restrictions and Spam if links do not arrive.
-8. Open the app → Connect Supabase → enter URL/Publishable key → Sign in → open the email link in the same browser.
+## Import → automatic Cloud save → latest-only display
 
-Project configuration alone does not prove SQL/Auth are set up. Cloud operations show actual API errors.
-
-## 3. Import → review → save
-
-- Upload Excel/CSV and verify totals first. It stays **LOCAL** until you click **Save to cloud**.
-- Save requires an invited, signed-in Supabase user.
-- Data library → Open dataset to reopen a snapshot from another device.
-- Data library → Delete permanently removes the snapshot and its rows.
-- Imports are separate snapshots, not automatically merged.
-- Normalized row content is hashed (SHA-256) to reject duplicate snapshots per user. Changing only the filename does not bypass this check.
-- Cloud limits: **25,000 rows** and **4.9 MB normalized JSON** per snapshot. Split larger files.
-- Local file upload limit: 40 MB. Local Excel/CSV parsing runs in the browser.
-- Original Excel/CSV files are **not** stored in Supabase Storage.
+- Sign in, then choose Excel/CSV. Valid real data automatically uploads; no separate Save click is needed.
+- Wait for **CLOUD · บันทึกชุดล่าสุดแล้ว** before closing the page. Reading a file successfully is not confirmation that it reached Cloud.
+- If not signed in, imported data stays local. Sign in to upload the current session's import.
+- Invalid core rows or failed uploads **do not replace the prior Cloud dataset**. Fix the file or use the retry button. Source files should be retained.
+- New uploads replace the active view; historical snapshots are retained separately, never added to the current totals.
+- Opening/reloading the app or returning to its tab checks for the latest Cloud snapshot. It is not a continuously updating realtime subscription.
+- Stale browser caches are never automatically pushed based on device timestamps.
+- Data library shows only the latest snapshot. Delete permanently removes that snapshot and its rows; the preceding historical snapshot can then become latest.
+- Normalized row content is hashed for deduplication per account. Reuploading the same dataset reactivates the existing snapshot.
+- Cloud limits: **25,000 rows** and **4.9 MB normalized JSON** per snapshot. Local file limit: 40 MB.
+- Original Excel/CSV files are not stored in Supabase Storage; validated normalized records are stored in Postgres.
+- Test credentials and synthetic data in browser mocks are not real production accounts. Real cross-device acceptance requires a provisioned account.
 
 ## Security model
 
@@ -150,3 +138,12 @@ Vite (MIT), Supabase JS (MIT), Chart.js (MIT), SheetJS CE 0.20.3 (Apache-2.0; of
 ## Global filter bar
 
 Date range, weekday, store, product Group and transaction type are always visible above the KPI cards (including mobile). They share the original single filter state and update KPIs, all charts, group share and performance tables together. Additional hour/unit/VAT controls expand within the same bar; Reset restores all filters. The sidebar now handles file import only. Numeric metrics retain one fixed decimal place.
+
+## Regression checks
+
+`npm test` covers private atomic SQL ingestion, deduplication, project selection,
+validation and existing product mapping. `npm run build` builds the SPA.
+With the development server running on port 4174, run
+`node tests/browser-cloud.cjs` for synthetic mocked password-login, automatic
+upload, latest-only mobile restore, failure/retry and invalid-import checks.
+It never writes to production. Set `CHROMIUM_PATH` if Chromium is not on PATH.

@@ -13,6 +13,14 @@ it('hides rows and imports from another account',async()=>{await login(B);expect
 it('rejects invalid rows without partial data',async()=>{await expect(save('b',[row,{...row,status:'INVALID'}])).rejects.toThrow(/Invalid sales row/);expect((await db.query('select * from public.bic_imports')).rows).toHaveLength(0)});
 it('assigns owner server-side',async()=>{await save('b');expect((await db.query('select owner_id from public.bic_imports')).rows[0].owner_id).toBe(B)});
 it('reactivates duplicate as latest without duplicating rows',async()=>{const before=(await db.query('select id from public.bic_imports')).rows[0].id;expect((await save('b')).rows[0].id).toBe(before);expect((await db.query('select * from public.bic_sales_rows')).rows).toHaveLength(1)});
+it('keeps previous snapshots separate and preserves latest after invalid upload',async()=>{
+  const latest=(await save('d',[{...row,inc:214,ex:200}])).rows[0].id;
+  expect((await db.query('select count(*)::int n from public.bic_imports')).rows[0].n).toBe(2);
+  expect((await db.query('select payload from public.bic_sales_rows where import_id=$1',[latest])).rows).toHaveLength(1);
+  await expect(save('e',[{...row,status:'INVALID'}])).rejects.toThrow(/Invalid sales row/);
+  expect((await db.query('select id from public.bic_imports order by activated_at desc,id desc limit 1')).rows[0].id).toBe(latest);
+  await db.query('delete from public.bic_imports where id=$1',[latest]);
+});
 it('blocks anonymous access',async()=>{await db.exec('reset role; set role anon');await db.query("select set_config('request.jwt.claim.sub','',false)");await expect(db.query('select * from public.bic_imports')).rejects.toThrow(/permission denied/);await expect(save('c')).rejects.toThrow(/permission denied/)});
 it('cascades deletion only for owner data',async()=>{await login(A);await db.query('delete from public.bic_imports where id=$1',[id]);expect((await db.query('select * from public.bic_sales_rows')).rows).toHaveLength(0);await login(B);expect((await db.query('select * from public.bic_sales_rows')).rows).toHaveLength(1)});
 });

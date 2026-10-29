@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import setupSQL from "../supabase/setup.sql?raw";
+import { PROJECT_URL, PROJECT_CONFIG, pickProjectConfig, uploadProblem } from "./cloud-config.js";
 const STORAGE = "bic.project.v1";
 export function validateConfig(c) {
   let url;
@@ -49,7 +50,9 @@ export function initCloud(api) {
     busy = false,
     generation = 0,
     subscription = null,
-    pendingSave = false;
+    pendingSave = false,
+    saveFailed = false,
+    restoring = false;
   const $ = (id) => document.getElementById(id),
     message = (text, error = false) => {
       const p = el("div", text, "cloud-notice" + (error ? " error" : ""));
@@ -68,21 +71,22 @@ export function initCloud(api) {
       lastRows = d.rows;
     }
     const save = $("cloudSave");
-    save.disabled = busy || d.isDemo || !d.rows.length || !!currentId;
-    save.textContent = currentId ? "✓ Saved to cloud" : "↑ Save to cloud";
-    $("cloudAuth").textContent = user ? "Sign out" : "Sign in";
+    save.hidden = !!currentId || (!!user && !saveFailed) || d.isDemo;
+    save.disabled = busy;
+    save.textContent = !config ? "ตั้งค่า Cloud" : !user ? "เข้าสู่ระบบเพื่ออัปโหลด" : "ลองอัปโหลดอีกครั้ง";
+    $("cloudAuth").textContent = user ? "ออกจากระบบ" : "เข้าสู่ระบบ";
     $("cloudAuth").disabled = busy;
     $("cloudSetup").disabled = busy;
     $("cloudLibrary").disabled = busy;
     $("cloudStatus").textContent = busy
       ? "กำลังทำงาน…"
       : currentId
-        ? "SUPABASE · Latest dataset"
+        ? "CLOUD · บันทึกชุดล่าสุดแล้ว · เปิดบนมือถือด้วยบัญชีเดียวกัน"
         : user
-          ? "ลงชื่อเข้าใช้แล้ว · " + user.email
+          ? "อัปโหลดอัตโนมัติพร้อมใช้งาน · " + user.email
           : config
-            ? "ตั้งค่า Project แล้ว · กรุณา Sign in"
-            : "LOCAL · ยังไม่เชื่อมฐานข้อมูล";
+            ? "เข้าสู่ระบบด้วยอีเมลและรหัสผ่านเพื่อใช้ข้อมูลข้ามอุปกรณ์"
+            : "ยังไม่ได้เชื่อม Project ใหม่ · ข้อมูลยังอยู่บนเครื่องนี้";
     $("cloudStatus").classList.toggle("connected", !!user);
   };
   const makeDialog = (title) => {
@@ -100,47 +104,46 @@ export function initCloud(api) {
     return d;
   };
   async function refreshLibrary() {
-    const { data, error } = await client
+    const gen = generation, activeClient = client;
+    const { data, error } = await activeClient
       .from("bic_imports")
       .select("id,name,row_count,meta,content_hash,created_at,activated_at")
       .order("activated_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(1);
     if (error) throw error;
+    if (gen !== generation) return [];
     library = data;
     return data;
   }
   function announceSession() {
     window.dispatchEvent(
       new CustomEvent("bic:session-ready", {
-        detail: { project: config?.url, user: user?.id },
+        detail: { project: config?.url || PROJECT_URL, user: user?.id },
       }),
     );
   }
   async function restoreCloud() {
-    const gen = generation,
-      ref = api.getData().rows;
+    if (restoring || busy || !client || !user) return;
+    restoring = true;
+    const gen = generation, ref = api.getData().rows;
     try {
       await refreshLibrary();
       if (gen !== generation) return;
       const d = api.getData();
-      if (
-        d.origin === "cache" &&
-        d.rows.length &&
-        (!library.length ||
-          Date.parse(d.cachedAt) > Date.parse(library[0].activated_at))
-      ) {
-        await saveLatest();
+      // Only a new, intentional import may replace cloud data. Never auto-push
+      // cached rows based on device timestamps: device clocks can be wrong.
+      if (d.origin === "local" && !d.isDemo && d.rows.length) {
+        setTimeout(saveLatest, 0);
         return;
       }
-      if (
-        library.length &&
-        (d.rows === ref || d.origin === "cache") &&
-        d.origin !== "local"
-      )
+      if (library.length && currentId !== library[0].id &&
+          (d.rows === ref || d.origin === "cache") && d.origin !== "local")
         await openSnapshot(library[0], null, true);
     } catch (e) {
-      message(errorText(e), true);
+      if (gen === generation) message(errorText(e), true);
+    } finally {
+      if (gen === generation) restoring = false;
     }
   }
 
@@ -152,6 +155,10 @@ export function initCloud(api) {
     user = null;
     currentId = null;
     library = [];
+    busy = false;
+    restoring = false;
+    pendingSave = false;
+    saveFailed = false;
     if (!c) {
       client = null;
       updateUI();
@@ -202,7 +209,7 @@ export function initCloud(api) {
     d.append(
       el(
         "p",
-        "เชื่อม Supabase ของคุณ · ใช้ Project URL และ Publishable key เท่านั้น ไม่ต้องใช้รหัสลับของเซิร์ฟเวอร์",
+        "Project ใหม่: gknqdodyvejvdlaxucrs · ใช้ Publishable key หรือ anon key เท่านั้น ไม่ใช้ Secret key",
         "dialog-copy",
       ),
     );
@@ -210,7 +217,7 @@ export function initCloud(api) {
     step1.append(el("strong", "01 · Create project & database"));
     const p = el(
       "p",
-      "สร้าง project ใน Supabase แล้วคัดลอก SQL ไปรันหนึ่งครั้งใน SQL Editor",
+      "ฐานข้อมูลของ Project ใหม่นี้สร้างแล้ว ปุ่ม SQL ด้านล่างสำหรับผู้ดูแลกรณีต้องติดตั้งซ้ำ ไม่ต้องลบ Project เก่า",
     );
     const a = el("a", "เปิด Supabase dashboard");
     a.href = "https://supabase.com/dashboard";
@@ -246,7 +253,7 @@ export function initCloud(api) {
       el("strong", "02 · Auth configuration"),
       el(
         "p",
-        "ตั้ง Auth → URL Configuration ให้ Site URL และ Redirect URL เป็นโดเมนเว็บนี้ แล้ว Invite ผู้ใช้ผ่าน Auth → Users แอปไม่เปิดสมัครบัญชีเอง",
+        "เปิด Email provider แล้วไป Authentication → Users → Add user → Create new user ตั้งอีเมลและรหัสผ่าน ยืนยันอีเมลสำหรับบัญชีที่ผู้ดูแลตรวจสอบแล้ว แอปไม่เปิดสมัครบัญชีสาธารณะ",
       ),
     );
     d.append(step2);
@@ -266,11 +273,12 @@ export function initCloud(api) {
     const url = field(
         "Project URL",
         "url",
-        config?.url,
-        "https://your-project.supabase.co",
+        PROJECT_URL,
+        PROJECT_URL,
       ),
       key = field("Publishable key", "text", config?.key, "sb_publishable_…");
     key.spellcheck = false;
+    url.readOnly = true;
     const note = el("p", "", "dialog-copy");
     const actions = el("div", undefined, "dialog-buttons"),
       save = el("button", "Save connection", "btn primary");
@@ -323,68 +331,56 @@ export function initCloud(api) {
       form,
       el(
         "p",
-        "การตั้งค่านี้เก็บ Public configuration บน browser นี้ การตั้งค่าไม่ได้ส่งไฟล์ขายขึ้น Cloud",
+        "เมื่อเข้าสู่ระบบแล้ว ไฟล์จริงที่นำเข้าและผ่านการตรวจจะอัปโหลดอัตโนมัติ ทุกอุปกรณ์ใช้ Project ใหม่เดียวกันโดยอัตโนมัติ",
         "small",
       ),
     );
   }
   function authDialog() {
-    if (!client) {
-      setupDialog();
-      return;
-    }
-    const d = makeDialog("Welcome to your workspace.");
-    d.append(
-      el(
-        "p",
-        "รับ sign-in link ทางอีเมล · ต้องเป็นผู้ใช้ที่ Invite ไว้ใน Supabase project นี้แล้ว",
-        "dialog-copy",
-      ),
-    );
-    const form = el("form"),
-      l = el("label", "Email address", "dialog-field"),
-      input = el("input");
-    input.type = "email";
-    input.autocomplete = "email";
-    input.required = true;
-    input.placeholder = "you@company.com";
-    l.append(input);
-    const note = el("p", "", "dialog-copy"),
-      button = el("button", "Send sign-in link", "btn primary");
-    button.type = "submit";
-    form.append(l, note, button);
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      button.disabled = true;
+    if (!client) { setupDialog(); return; }
+    const d = makeDialog("เข้าสู่ระบบเด็กสมบูรณ์");
+    d.append(el("p", "ใช้อีเมลและรหัสผ่านที่สร้างไว้ใน Project ใหม่ · ไม่ต้องรอลิงก์อีเมล ไฟล์ใหม่จะบันทึกขึ้น Cloud อัตโนมัติ", "dialog-copy"));
+    const form = el("form"), emailLabel = el("label", "อีเมล", "dialog-field"), input = el("input"),
+      passwordLabel = el("label", "รหัสผ่าน", "dialog-field"), password = el("input"),
+      note = el("p", "", "dialog-copy"), button = el("button", "เข้าสู่ระบบ", "btn primary");
+    input.id = "cloudEmail"; input.type = "email"; input.autocomplete = "username";
+    input.required = true; input.placeholder = "you@company.com";
+    password.id = "cloudPassword"; password.type = "password";
+    password.autocomplete = "current-password"; password.required = true;
+    emailLabel.append(input); passwordLabel.append(password);
+    note.setAttribute("role", "alert"); button.type = "submit";
+    form.append(emailLabel, passwordLabel,
+      el("p", "จดจำการเข้าสู่ระบบในเบราว์เซอร์นี้ · ออกจากระบบเมื่อใช้เครื่องร่วมกับผู้อื่น", "dialog-copy"), note, button);
+    form.onsubmit = async (event) => {
+      event.preventDefault(); button.disabled = true;
       try {
-        const { error } = await client.auth.signInWithOtp({
-          email: input.value.trim(),
-          options: {
-            emailRedirectTo: location.origin + "/",
-            shouldCreateUser: false,
-          },
-        });
+        const gen = generation, activeClient = client;
+        const { data, error } = await activeClient.auth.signInWithPassword({ email: input.value.trim(), password: password.value });
+        password.value = "";
         if (error) throw error;
-        note.textContent =
-          "ส่งลิงก์แล้ว กรุณาเปิดอีเมลใน browser นี้ หากไม่พบให้ตรวจ Spam, Auth logs, Invite user และ SMTP ของ Supabase";
-      } catch (e) {
-        note.textContent = errorText(e);
-      } finally {
-        button.disabled = false;
-      }
+        if (gen !== generation) return;
+        user = data.user; updateUI(); announceSession(); d.close();
+        message("เข้าสู่ระบบแล้ว · ไฟล์ใหม่จะอัปโหลดอัตโนมัติ");
+        setTimeout(restoreCloud, 0);
+      } catch (error) {
+        password.value = "";
+        note.textContent = error.code === "invalid_credentials" || /Invalid login credentials/i.test(error.message)
+          ? "อีเมลหรือรหัสผ่านไม่ถูกต้อง ตรวจว่ามีบัญชีนี้ใน Project ใหม่แล้ว" : errorText(error);
+      } finally { button.disabled = false; }
     };
     d.append(form);
   }
   async function openSnapshot(item, dialog, automatic = false) {
     if (busy) return;
     busy = true;
-    const gen = generation,
+    const gen = generation, activeClient = client,
       ref = api.getData().rows;
     updateUI();
     try {
       const rows = [];
       for (let start = 0; start < item.row_count; start += 1000) {
-        const { data, error } = await client
+        if (gen !== generation) return;
+        const { data, error } = await activeClient
           .from("bic_sales_rows")
           .select("payload")
           .eq("import_id", item.id)
@@ -413,11 +409,13 @@ export function initCloud(api) {
       });
       lastRows = rows;
       currentId = item.id;
+      saveFailed = false;
       dialog?.close();
       message("เปิดชุดข้อมูลจาก Supabase แล้ว");
     } catch (e) {
-      message(errorText(e), true);
+      if (gen === generation) message(errorText(e), true);
     } finally {
+      if (gen !== generation) return;
       busy = false;
       updateUI();
       if (pendingSave) {
@@ -443,7 +441,7 @@ export function initCloud(api) {
       content.replaceChildren();
       if (!library.length)
         content.append(
-          el("p", "ยังไม่มีชุดข้อมูล · Import data แล้วกด Save to cloud"),
+          el("p", "ยังไม่มีข้อมูล Cloud · เลือกไฟล์จริงเพื่ออัปโหลดอัตโนมัติ"),
         );
       for (const item of library) {
         const box = el("div", undefined, "cloud-list-item");
@@ -524,17 +522,12 @@ export function initCloud(api) {
       return;
     }
     if (d.isDemo || !d.rows.length || currentId) return;
-    if (d.rows.length > 25000) {
-      message("Cloud รองรับไม่เกิน 25,000 รายการต่อชุด กรุณาแบ่งไฟล์", true);
-      return;
-    }
-    const json = JSON.stringify(d.rows);
-    if (new TextEncoder().encode(json).byteLength > 4_900_000) {
-      message("ข้อมูล Cloud เกินขนาด 4.9 MB กรุณาแบ่งไฟล์", true);
-      return;
-    }
-    const gen = generation;
+    const problem = uploadProblem(d);
+    if (problem) { saveFailed = true; message(problem, true); updateUI(); return; }
+    const json = JSON.stringify(d.rows), gen = generation, activeClient = client;
     busy = true;
+    saveFailed = false;
+    message("กำลังอัปโหลดชุดล่าสุด… อย่าปิดหน้านี้จนกว่าจะบันทึกสำเร็จ");
     updateUI();
     try {
       const hash = Array.from(
@@ -544,7 +537,8 @@ export function initCloud(api) {
       )
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
-      const { data: id, error } = await client.rpc("bic_ingest", {
+      if (gen !== generation) return;
+      const { data: id, error } = await activeClient.rpc("bic_ingest", {
         p_name: d.source.slice(0, 255),
         p_hash: hash,
         p_rows: d.rows,
@@ -554,13 +548,18 @@ export function initCloud(api) {
       if (gen !== generation) return;
       if (api.getData().rows === d.rows) {
         currentId = id;
+        api.markCloudSaved?.(d.rows, new Date().toISOString());
         message(
           "บันทึกชุดล่าสุดบน Cloud แล้ว · เปิดเว็บครั้งหน้าจะใช้ชุดนี้ ไม่รวมชุดเก่า",
         );
       }
     } catch (e) {
-      message(errorText(e), true);
+      if (gen === generation) {
+        saveFailed = true;
+        message("อัปโหลดไม่สำเร็จ · ชุด Cloud เดิมยังอยู่ · " + errorText(e), true);
+      }
     } finally {
+      if (gen !== generation) return;
       busy = false;
       updateUI();
       if (pendingSave) {
@@ -585,6 +584,14 @@ export function initCloud(api) {
       user
     )
       setTimeout(saveLatest, 0);
+    else if (changed && d.origin === "local" && !d.isDemo && d.rows.length)
+      message("อ่านไฟล์แล้ว แต่ยังไม่ขึ้น Cloud · กรุณาเข้าสู่ระบบ ข้อมูลตอนนี้อยู่บนเครื่องนี้เท่านั้น", true);
+  });
+  window.addEventListener("focus", () => {
+    if (document.visibilityState === "visible") restoreCloud();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") restoreCloud();
   });
   updateUI();
   try {
@@ -593,11 +600,8 @@ export function initCloud(api) {
       key =
         import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
         import.meta.env.VITE_SUPABASE_ANON_KEY;
-    const c = stored
-      ? validateConfig(JSON.parse(stored))
-      : url && key
-        ? validateConfig({ url, key })
-        : null;
+    const picked = pickProjectConfig(stored ? JSON.parse(stored) : null, { url, key }) || PROJECT_CONFIG;
+    const c = picked ? validateConfig(picked) : null;
     connect(c).catch((e) => message(errorText(e), true));
   } catch (e) {
     message(errorText(e), true);
