@@ -144,10 +144,44 @@
               </select>
             </div>
             <div class="field">
-              <label for="groupFilter">Group สินค้า</label
-              ><select id="groupFilter">
-                <option value="all">ทุก Group</option>
-              </select>
+              <span id="groupFilterLabel" class="group-filter-label"
+                >Group สินค้า</span
+              >
+              <details id="groupFilter" class="group-multiselect">
+                <summary
+                  id="groupFilterToggle"
+                  aria-labelledby="groupFilterLabel groupFilterText"
+                >
+                  <span id="groupFilterText">ทุก Group</span
+                  ><svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="m5 7 5 5 5-5" />
+                  </svg>
+                </summary>
+                <div
+                  class="group-checkbox-menu"
+                  role="group"
+                  aria-labelledby="groupFilterLabel"
+                >
+                  <p>เลือกได้หลาย Group · ปรับข้อมูลทันที</p>
+                  <label class="group-checkbox-row group-check-all"
+                    ><input type="checkbox" id="groupAll" checked /><span
+                      >เลือกทั้งหมด</span
+                    ></label
+                  >
+                  <div id="groupChoices"></div>
+                  <button type="button" id="clearGroups" class="textbtn">
+                    ล้างการเลือก
+                  </button>
+                </div>
+              </details>
             </div>
             <div class="field">
               <label for="return">สถานะรายการ</label
