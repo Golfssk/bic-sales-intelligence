@@ -1,4 +1,5 @@
 import Chart from "chart.js/auto";
+import { CHART_THEME } from "./visual-tokens.js";
 import { GROUPS, GROUP_COLORS, groupSales } from "./product-groups";
 let chart = null;
 const fmt = (v) =>
@@ -47,7 +48,7 @@ export function renderGroupChart(rows, vat = true) {
             backgroundColor: usable.map(
               (g) => GROUP_COLORS[GROUPS.indexOf(g.group)],
             ),
-            borderColor: "#181818",
+            borderColor: CHART_THEME.surface,
             borderWidth: 3,
             hoverOffset: 8,
           },

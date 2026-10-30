@@ -9,16 +9,7 @@ export const GROUPS = [
   "Other Beverages & Retail",
   "Unmapped / รอตรวจสอบ",
 ];
-export const GROUP_COLORS = [
-  "#1ed760",
-  "#53d6c5",
-  "#559ee8",
-  "#eac26b",
-  "#c58fdd",
-  "#df9255",
-  "#91a5ad",
-  "#777777",
-];
+export { GROUP_PALETTE as GROUP_COLORS } from "./visual-tokens.js";
 export const normalizeProduct = (name) =>
   String(name ?? "")
     .normalize("NFKC")

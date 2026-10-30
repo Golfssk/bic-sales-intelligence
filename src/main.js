@@ -11,3 +11,4 @@ import { initBI } from './bi.js';
 initBI(window.BIC_APP);
 import { initWorkbench } from './workbench.js';
 initWorkbench(window.BIC_APP);
+import './claude.css';
