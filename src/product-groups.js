@@ -103,6 +103,11 @@ const RULES = [
     "กลุ่มเครื่องดื่มสำเร็จรูปและสินค้าปลีก",
   ],
 ];
+// Physical-unit conversion must not depend on editable presentation mappings.
+export function isIceCreamProduct(name) {
+  const key = normalizeProduct(name);
+  return exactMap.get(key) === GROUPS[0] || RULES[0][1].test(key);
+}
 const cache = new Map();
 export function classifyProduct(name) {
   const key = normalizeProduct(name);

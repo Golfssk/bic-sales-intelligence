@@ -18,7 +18,7 @@
 - Compatible ex-VAT discount numerator and denominator. Legacy snapshots missing `beforeEx` require reimport; no backfilled guesses.
 - Numeric display is one decimal; calculations retain original precision.
 - Core-rejected imports and mismatched/incomplete explicit footer controls do not replace the Cloud snapshot. Ambiguous multiple footers cannot prove reconciliation and are labeled unverified.
-- COUNTA counts rows, not units. Quantities are reported by raw POS unit. No invented conversion from G/UNI to CUP.
+- COUNTA counts rows, not units. Ice cream UNIT/UNI/UNITS use the owner-approved 2:1 CUP equivalence; G and other products are unchanged. Original unit/quantity are retained and used to reconcile source footers. Displayed and source-unit totals are separate in the quality panel. See [unit conversion](UNIT-CONVERSION.md).
 - Before/after mapping/target settings are audited, using optimistic version locking to prevent overwriting another admin's edits. Refresh the workspace after a version conflict before retrying.
 - Receipt drill-through only proves the lines in the loaded file; it is not a certified complete POS receipt.
 - Comparison coverage uses file min/max dates, not an independent completeness manifest. Missing dates require verification with POS. Custom unequal/overlapping windows are labeled; zero baselines display —.
