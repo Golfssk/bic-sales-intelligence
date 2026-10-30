@@ -297,3 +297,7 @@ body.ux-workbench,.ux-workbench *{color:#000!important}
 /* Keep inverse/code and hover surfaces readable now that their text is black. */
 .ux-workbench .bi-panel pre{background:var(--surface)}
 .ux-workbench .ux-primary:hover,.ux-workbench .btn.primary:hover{background:#d88a6d;border-color:#d88a6d}
+
+/* Explicit physical-unit normalization, visible beside the active dataset scope. */
+.ux-workbench .unit-conversion-notice{font-size:13px;line-height:1.8;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--coral);border-radius:8px;padding:12px 15px;margin:0 0 20px}
+@media(max-width:760px){.ux-workbench .unit-conversion-notice{font-size:12px;padding:12px;margin-bottom:18px}}

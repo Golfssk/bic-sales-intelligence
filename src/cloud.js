@@ -434,7 +434,7 @@ export function initCloud(api) {
         issues: item.meta?.issues || {},
         schema: item.meta?.schema || {},
       });
-      lastRows = rows;
+      lastRows = api.getData().rows;
       currentId = item.id;
       saveFailed = false;
       window.dispatchEvent(new CustomEvent('bic:snapshot',{detail:item}));
