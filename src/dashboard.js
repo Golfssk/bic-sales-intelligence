@@ -2,6 +2,7 @@ import { GROUPS, classifyProduct } from "./product-groups.js";
 import { renderGroupChart } from "./group-chart.js";
 import * as XLSX from "xlsx";
 import Chart from "chart.js/auto";
+import { CHART_THEME } from "./visual-tokens.js";
 
 (() => {
   "use strict";
@@ -824,7 +825,7 @@ import Chart from "chart.js/auto";
         x: {
           grid: { display: false },
           ticks: {
-            color: "#a7a7a7",
+            color: CHART_THEME.text,
             maxRotation: 0,
             autoSkip: true,
             maxTicksLimit: window.innerWidth < 600 ? 5 : 10,
@@ -834,10 +835,10 @@ import Chart from "chart.js/auto";
         y: {
           beginAtZero: true,
           grace: "15%",
-          grid: { color: "#ffffff0d" },
+          grid: { color: CHART_THEME.grid },
           border: { display: false },
           ticks: {
-            color: "#a7a7a7",
+            color: CHART_THEME.text,
             precision: count ? 0 : undefined,
             callback: (v) => compact(v) + (unit === "%" ? "%" : ""),
             font: { size: 11 },
@@ -846,7 +847,7 @@ import Chart from "chart.js/auto";
             display: true,
             text: unit,
             font: { size: 10 },
-            color: "#a7a7a7",
+            color: CHART_THEME.text,
           },
         },
       },
@@ -888,7 +889,7 @@ import Chart from "chart.js/auto";
                   const { ctx } = c;
                   ctx.save();
                   ctx.font = "11px Arial";
-                  ctx.fillStyle = "#b3b3b3";
+                  ctx.fillStyle = CHART_THEME.text;
                   ctx.textAlign = "center";
                   c.getDatasetMeta(0).data.forEach((p, i) => {
                     if (data[i] !== null) {
@@ -955,14 +956,17 @@ import Chart from "chart.js/auto";
       `${mode} · วันที่อิงเอกสาร / ชั่วโมงอิงเวลาสร้าง`;
     if (typeof Chart !== "undefined") {
       Chart.defaults.font.family = "Arial, Thai, sans-serif";
-      Chart.defaults.color = "#a7a7a7";
-      makeChart("trend", "line", labels, vals, "#1ed760", unit);
+      Chart.defaults.color = CHART_THEME.text;
+      Chart.defaults.plugins.tooltip.backgroundColor = CHART_THEME.tooltip;
+      Chart.defaults.plugins.tooltip.titleColor = CHART_THEME.onTooltip;
+      Chart.defaults.plugins.tooltip.bodyColor = CHART_THEME.onTooltip;
+      makeChart("trend", "line", labels, vals, CHART_THEME.primary, unit);
       makeChart(
         "variance",
         "bar",
         labels,
         variances,
-        variances.map((v) => (v >= 0 ? "#1ed760" : "#f3727f")),
+        variances.map((v) => (v >= 0 ? CHART_THEME.positive : CHART_THEME.negative)),
         "%",
       );
       makeChart(
@@ -970,7 +974,7 @@ import Chart from "chart.js/auto";
         "bar",
         labels,
         chartBuckets.map((b) => (b.s ? b.s.tc : null)),
-        "#1ed760",
+        CHART_THEME.positive,
         "บิล",
       );
       makeChart(
@@ -978,7 +982,7 @@ import Chart from "chart.js/auto";
         "line",
         labels,
         chartBuckets.map((b) => b.s?.ta ?? null),
-        "#cbcbcb",
+        CHART_THEME.secondary,
         "THB/บิล",
       );
     }
