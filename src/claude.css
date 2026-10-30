@@ -287,3 +287,13 @@ body.ux-workbench{--ux-bg:var(--canvas);--ux-panel:var(--canvas);--ux-line:var(-
 .ux-workbench .eyebrow{color:var(--muted)}
 .ux-workbench .ux-inspector-tabs>button{color:#625e56}
 .ux-workbench .ux-inspector-tabs>button[aria-selected=true]{color:var(--ink)}
+
+/* Owner preference: pure black typography across every analysis/tool surface. */
+body.ux-workbench,.ux-workbench *{color:#000!important}
+.ux-workbench .ux-inspector-eyebrow,
+.ux-workbench .mobile-bottom-nav button.ux-bottom-button,
+.ux-workbench .mobile-bottom-nav button.ux-bottom-button[aria-current]{color:#000!important}
+.ux-workbench input::placeholder,.ux-workbench textarea::placeholder{color:#000!important;opacity:1}
+/* Keep inverse/code and hover surfaces readable now that their text is black. */
+.ux-workbench .bi-panel pre{background:var(--surface)}
+.ux-workbench .ux-primary:hover,.ux-workbench .btn.primary:hover{background:#d88a6d;border-color:#d88a6d}

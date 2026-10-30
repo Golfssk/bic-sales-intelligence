@@ -19,6 +19,6 @@ describe('Warm editorial presentation',()=>{
   expect(GROUP_PALETTE).toHaveLength(8);expect(new Set(GROUP_PALETTE).size).toBe(8);expect(CHART_THEME.surface).toBe(tokens.canvas);
  });
  it('uses locally available fallback fonts and keeps native controls in light mode',()=>{
-  expect(css).toContain("Georgia,'Times New Roman',Thai,serif");expect(css).toContain('color-scheme:light');expect(css).not.toMatch(/https?:\/\//);
+  expect(css).toContain("Georgia,'Times New Roman',Thai,serif");expect(css).toContain('color-scheme:light');expect(css).toContain('body.ux-workbench,.ux-workbench *{color:#000!important}');expect(CHART_THEME.text).toBe('#000000');expect(CHART_THEME.onTooltip).toBe('#000000');expect(css).not.toMatch(/https?:\/\//);
  });
 });

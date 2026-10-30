@@ -42,3 +42,11 @@ Cloud project or sales records change as part of this theme release.
 filter/native-input theme and nested dialog surfaces. Existing workbench/mobile,
 Cloud mocks and BI regressions remain required. These checks are not a blanket
 accessibility certification; real assistive-technology testing remains valuable.
+
+## Owner typography update
+
+All rendered typography now uses pure black (`#000`), including secondary copy,
+menu labels, positive/negative textual values, placeholders and chart tick labels.
+Surface, border, series and status-marker colors remain. Signs, wording and chart
+colors continue to distinguish positive/negative data. Tooltips and audit code
+blocks use light cream backgrounds so their black text remains readable.
