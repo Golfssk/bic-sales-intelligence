@@ -3,6 +3,7 @@ import { renderGroupChart } from "./group-chart.js";
 import * as XLSX from "xlsx";
 import Chart from "chart.js/auto";
 import { CHART_THEME } from "./visual-tokens.js";
+import { normalizeUnitRows, conversionSummary } from "./unit-conversion.js";
 
 (() => {
   "use strict";
@@ -350,7 +351,7 @@ import { CHART_THEME } from "./visual-tokens.js";
         "ไม่มีรายการที่ผ่านการตรวจสอบ กรุณาตรวจวันที่ ตัวเลข และสถานะ N/Y",
       );
     return {
-      rows: out,
+      rows: normalizeUnitRows(out),
       issues: bad,
       schema: {
         absent,
@@ -375,9 +376,9 @@ import { CHART_THEME } from "./visual-tokens.js";
   ) {
     cachedAt = timestamp || new Date().toISOString();
     dataOrigin = demo ? "demo" : origin;
-    rows = result.rows;
+    rows = normalizeUnitRows(result.rows);
     issues = result.issues;
-    schema = result.schema;
+    schema = { ...result.schema, unitConversion: conversionSummary(rows) };
     source = label;
     isDemo = demo;
     extent = [Math.min(...rows.slice(0, 1).map((r) => r.ms)), 0];
@@ -1189,6 +1190,11 @@ import { CHART_THEME } from "./visual-tokens.js";
     }
     if (rows.length && $("message").querySelector(".error")) notify("");
     filtered = rows.length ? selected(rows, lo, hi) : [];
+    const converted = conversionSummary(filtered);
+    $("unitConversionNotice").hidden = !converted.rows;
+    $("unitConversionNotice").textContent = converted.rows
+      ? `ไอศกรีม 2 UNIT / UNI = 1 CUP · แปลง ${intf.format(converted.rows)} แถวเป็น CUP แล้ว · CUP เดิมและ G คงเดิม · ยอดเงินไม่เปลี่ยน`
+      : "";
     $("range").textContent = rows.length
       ? `${dateText($("from").value)} — ${dateText($("to").value)}`
       : "ยังไม่มีข้อมูล";
