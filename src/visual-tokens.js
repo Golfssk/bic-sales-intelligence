@@ -1,10 +1,11 @@
-// Presentation-only palette derived from DESIGN-claude.md; no measure logic.
+// Presentation-only Spotify-inspired palette; measure logic is unchanged.
 export const CHART_THEME = Object.freeze({
-  text: '#000000', grid: '#e6dfd8', primary: '#b46b50',
-  positive: '#438573', negative: '#bc5d58', secondary: '#79776f',
-  surface: '#faf9f5', tooltip: '#f5f0e8', onTooltip: '#000000',
+  text: '#b3b3b3', grid: '#303030', primary: '#1ed760',
+  positive: '#1ed760', negative: '#f3727f', secondary: '#b3b3b3',
+  surface: '#181818', tooltip: '#252525', onTooltip: '#ffffff',
 });
+// Distinct analytical categories, not additional UI brand accents.
 export const GROUP_PALETTE = Object.freeze([
-  '#b56f54', '#6f9e92', '#788fab', '#c6a363',
-  '#8d99a1', '#9981a1', '#a5aa7d', '#8b8780',
+  '#1ed760', '#539df5', '#b49ce7', '#ffa42b',
+  '#74c7c1', '#e6b4cb', '#b3b3b3', '#777777',
 ]);

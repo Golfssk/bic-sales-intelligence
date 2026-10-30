@@ -1,6 +1,6 @@
 # BIC · Sales Intelligence
 
-Warm editorial retail analytics workbench. **Vite SPA + Supabase Auth/Postgres + Vercel**.
+Spotify-inspired dark retail analytics workbench. **Vite SPA + Supabase Auth/Postgres + Vercel**.
 The workbench keeps the existing calculation engine and separates analysis views from on-demand workspace tools. See [UX workbench](docs/UX-WORKBENCH.md) and [design system](docs/DESIGN-SYSTEM.md).
 Not affiliated with Spotify or Lotus’s. Uses Arial + embedded Noto Sans Thai, not proprietary Spotify fonts.
 
@@ -115,7 +115,7 @@ src/base.css          Base responsive styles and embedded Thai font
 src/theme.css         Base dark surfaces and green accent
 src/workbench.js      Primary views and modal workspace-tools inspector
 src/workbench.css     Responsive desktop rail and mobile workbench
-src/claude.css        Warm cream/coral presentation and accessible text variants
+src/spotify.css       Near-black / green presentation, readable contrast and touch controls
 src/visual-tokens.js  Shared chart presentation palette
 supabase/setup.sql    Tables, RLS and atomic import RPC
 tests/                Database and configuration tests
