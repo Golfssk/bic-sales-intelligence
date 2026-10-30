@@ -1,3 +1,4 @@
+import { sourceFieldValue, sourceUnit, conversionSummary } from "./unit-conversion.js";
 export const DAY = 86400000;
 export const total = (rows, field) => rows.reduce((n,r)=>n+(Number.isFinite(r[field])?r[field]:0),0);
 export const billKey = r => JSON.stringify([r.store,r.doc,r.status]);
@@ -10,10 +11,14 @@ export function measures(rows,basis='inc') {
 export function reconcile(rows,schema={},issues={}) {
   const units=[...new Set(rows.map(r=>r.unit))].map(unit=>({unit,qty:total(rows.filter(r=>r.unit===unit),'qty')}));
   const rejected=['noDoc','date','number','status'].reduce((n,k)=>n+(issues[k]||0),0);
-  const controls=Object.entries(schema.sourceTotals||{}).filter(([,v])=>Number.isFinite(v)).map(([field,expected])=>({field,expected,actual:total(rows,field),complete:rows.every(r=>Number.isFinite(r[field])),diff:total(rows,field)-expected,pass:rows.every(r=>Number.isFinite(r[field]))&&Math.abs(total(rows,field)-expected)<=.05}));
+  const controls=Object.entries(schema.sourceTotals||{}).filter(([,v])=>Number.isFinite(v)).map(([field,expected])=>{
+    const actual=rows.reduce((n,r)=>n+(Number.isFinite(sourceFieldValue(r,field))?sourceFieldValue(r,field):0),0),complete=rows.every(r=>Number.isFinite(sourceFieldValue(r,field)));
+    return {field,expected,actual,complete,diff:actual-expected,pass:complete&&Math.abs(actual-expected)<=.05};
+  });
+  const sourceUnits=[...new Set(rows.map(sourceUnit))].map(unit=>({unit,qty:rows.filter(r=>sourceUnit(r)===unit).reduce((n,r)=>n+sourceFieldValue(r,'qty'),0)}));
   const vatRows=rows.filter(r=>Number.isFinite(r.vat));
   const vatErrors=vatRows.filter(r=>Math.abs(r.ex+r.vat-r.inc)>.05).length;
-  return {units,rejected,controls,vatRows:vatRows.length,vatErrors,rows:rows.length,products:new Set(rows.map(r=>r.name)).size,itemUnits:new Set(rows.map(r=>JSON.stringify([r.sku,r.name,r.unit]))).size,receipts:new Set(rows.map(billKey)).size,ex:total(rows,'ex'),inc:total(rows,'inc'),sourceUnambiguous:(issues.summary||0)<=1};
+  return {units,sourceUnits,unitConversion:conversionSummary(rows),rejected,controls,vatRows:vatRows.length,vatErrors,rows:rows.length,products:new Set(rows.map(r=>r.name)).size,itemUnits:new Set(rows.map(r=>JSON.stringify([r.sku,r.name,r.unit]))).size,receipts:new Set(rows.map(billKey)).size,ex:total(rows,'ex'),inc:total(rows,'inc'),sourceUnambiguous:(issues.summary||0)<=1};
 }
 export function periodComparison(all,select,{from,to,basis='inc',mode='previous',customFrom,customTo,excludeLatest=false}) {
   let lo=Date.parse(from),hi=Date.parse(to);

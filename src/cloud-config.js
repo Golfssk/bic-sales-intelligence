@@ -1,3 +1,4 @@
+import { sourceFieldValue } from "./unit-conversion.js";
 // Public project identity only. Never put privileged API credentials here.
 export const PROJECT_REF = "gknqdodyvejvdlaxucrs";
 export const PROJECT_URL = `https://${PROJECT_REF}.supabase.co`;
@@ -21,7 +22,7 @@ export function uploadProblem(data) {
     return `พบข้อมูลหลักไม่ถูกต้อง ${rejected} แถว จึงยังไม่แทนชุด Cloud เดิม กรุณาตรวจรายงานคุณภาพและแก้ไฟล์ก่อนอัปโหลดใหม่`;
   if ((data.issues?.summary || 0) <= 1) {
     const controls = Object.entries(data.schema?.sourceTotals || {}).filter(([,v])=>Number.isFinite(v));
-    if (controls.some(([field,expected])=>!data.rows.every(r=>Number.isFinite(r[field])) || Math.abs(data.rows.reduce((s,r)=>s+r[field],0)-expected)>.05))
+    if (controls.some(([field,expected])=>!data.rows.every(r=>Number.isFinite(sourceFieldValue(r,field))) || Math.abs(data.rows.reduce((s,r)=>s+sourceFieldValue(r,field),0)-expected)>.05))
       return "ยอดรวมแถวจริงไม่ตรงหรือข้อมูลไม่ครบเทียบกับสรุปท้ายไฟล์ จึงยังไม่แทนชุด Cloud เดิม กรุณาตรวจผล Reconciliation";
   }
   if (data.rows.length > 25000)

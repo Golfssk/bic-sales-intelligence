@@ -80,6 +80,7 @@ Header must appear within the first 50 rows. Duplicate headers are rejected.
 - Return rate = ABS(Y total) / N total × 100, not net sales as denominator.
 - Discount = SUM `มูลค่าส่วนลด` on N / SUM `มูลค่าขายก่อนส่วนลด` on N, both ex VAT. Never divide an ex-VAT numerator by an inc-VAT denominator. Older normalized snapshots without `beforeEx` show — until the original file is reimported. VAT toggle does not change this ratio.
 - TC = distinct (store, document) on N; TA = Net Sales/TC; UPT = net quantity/TC. No denominator means —.
+- Ice cream imports use the owner-approved **2 UNIT / UNI = 1 CUP** rule (also accepts UNITS). Original quantity/unit are retained for audit; existing CUP, grams and other products are unchanged. Monetary fields are never converted. See [unit conversion](docs/UNIT-CONVERSION.md).
 - Mixed units must not be read as total physical pieces.
 - Per-day KPIs use selected calendar days, including days without rows, with the weekday filter applied.
 - Previous-window comparisons use an equal number of days only if the loaded date extent covers the prior window; rates use percentage points (pp).
