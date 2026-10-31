@@ -43,8 +43,8 @@ create or replace function public.bic_begin_import(
 declare v_user uuid:=auth.uid(); v_id uuid;
 begin
  if v_user is null then raise exception 'Sign in required' using errcode='42501'; end if;
+ if p_name is null or length(p_name) not between 1 and 255 then raise exception 'Invalid filename'; end if;
  if p_workspace is null then
-   if p_name is null or length(p_name) not between 1 and 255 then raise exception 'Invalid filename'; end if;
  else
    if public.bic_role(p_workspace) not in ('admin','uploader') or public.bic_role(p_workspace) is null then
      raise exception 'Upload permission required' using errcode='42501';
@@ -54,6 +54,7 @@ begin
  if p_expected_rows not between 1 and 250000 then raise exception 'Import must contain 1–250000 rows'; end if;
  if p_period_key is null or p_period_key !~ '^\d{4}-(0[1-9]|1[0-2])$' then raise exception 'Invalid monthly period'; end if;
  if jsonb_typeof(p_meta) is distinct from 'object' or octet_length(p_meta::text)>32768 then raise exception 'Invalid metadata'; end if;
+ delete from public.bic_import_sessions where owner_id=v_user and workspace_id is not distinct from p_workspace and created_at<now()-interval '24 hours';
  insert into public.bic_import_sessions(owner_id,workspace_id,name,content_hash,expected_rows,period_key,meta)
  values(v_user,p_workspace,left(p_name,255),p_hash,p_expected_rows,p_period_key,p_meta) returning id into v_id;
  return v_id;
