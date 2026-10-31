@@ -24,3 +24,35 @@ it('keeps previous snapshots separate and preserves latest after invalid upload'
 it('blocks anonymous access',async()=>{await db.exec('reset role; set role anon');await db.query("select set_config('request.jwt.claim.sub','',false)");await expect(db.query('select * from public.bic_imports')).rejects.toThrow(/permission denied/);await expect(save('c')).rejects.toThrow(/permission denied/)});
 it('cascades deletion only for owner data',async()=>{await login(A);await db.query('delete from public.bic_imports where id=$1',[id]);expect((await db.query('select * from public.bic_sales_rows')).rows).toHaveLength(0);await login(B);expect((await db.query('select * from public.bic_sales_rows')).rows).toHaveLength(1)});
 });
+
+describe.sequential('Monthly staged upload RPC',()=>{
+ const batchRow={...row,date:'2026-10-22'};
+ it('uploads in bounded batches and activates only after complete',async()=>{
+  await login(A);
+  const session=(await db.query("select public.bic_begin_import(null,'october.xlsx',$1,2,'2026-10','{}'::jsonb) id",['e'.repeat(64)])).rows[0].id;
+  expect((await db.query("select public.bic_append_import_batch($1,0,$2::jsonb) count",[session,JSON.stringify([batchRow])])).rows[0].count).toBe(1);
+  await expect(db.query("select public.bic_complete_import($1)",[session])).rejects.toThrow(/Upload incomplete/);
+  expect((await db.query("select count(*)::int n from public.bic_imports where content_hash=$1",['e'.repeat(64)])).rows[0].n).toBe(0);
+  await db.query("select public.bic_append_import_batch($1,1,$2::jsonb)",[session,JSON.stringify([batchRow])]);
+  const id=(await db.query("select public.bic_complete_import($1) id",[session])).rows[0].id;
+  expect((await db.query("select row_count,period_key from public.bic_imports where id=$1",[id])).rows[0]).toEqual({row_count:2,period_key:'2026-10'});
+  expect((await db.query("select count(*)::int n from public.bic_sales_rows where import_id=$1",[id])).rows[0].n).toBe(2);
+ });
+ it('rejects a batch larger than 2,000 rows',async()=>{
+  await login(A);
+  const session=(await db.query("select public.bic_begin_import(null,'large.xlsx',$1,2001,'2026-10','{}'::jsonb) id",['f'.repeat(64)])).rows[0].id;
+  await expect(db.query("select public.bic_append_import_batch($1,0,$2::jsonb)",[session,JSON.stringify(Array(2001).fill(batchRow))])).rejects.toThrow(/1–2000/);
+ });
+ it('enforces monthly date isolation and 250k dataset ceiling',async()=>{
+  await login(A);
+  await expect(db.query("select public.bic_begin_import(null,'too-large.xlsx',$1,250001,'2026-10','{}'::jsonb)",['a'.repeat(64)])).rejects.toThrow(/1–250000/);
+  const session=(await db.query("select public.bic_begin_import(null,'mixed.xlsx',$1,1,'2026-10','{}'::jsonb) id",['b'.repeat(64)])).rows[0].id;
+  await expect(db.query("select public.bic_append_import_batch($1,0,$2::jsonb)",[session,JSON.stringify([{...batchRow,date:'2026-09-30'}])])).rejects.toThrow(/Invalid sales row schema or mixed monthly period/);
+ });
+ it('prevents another private account from appending to a session',async()=>{
+  await login(A);
+  const session=(await db.query("select public.bic_begin_import(null,'private.xlsx',$1,1,'2026-10','{}'::jsonb) id",['c'.repeat(64)])).rows[0].id;
+  await login(B);
+  await expect(db.query("select public.bic_append_import_batch($1,0,$2::jsonb)",[session,JSON.stringify([batchRow])])).rejects.toThrow(/Import permission required/);
+ });
+});
