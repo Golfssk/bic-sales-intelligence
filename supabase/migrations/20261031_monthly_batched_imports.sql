@@ -160,6 +160,26 @@ begin
 end;
 $$;
 
+
+create or replace function public.bic_abort_import(p_session uuid)
+returns void language plpgsql security definer set search_path='' as $
+declare s public.bic_import_sessions%rowtype; v_uid uuid:=auth.uid();
+begin
+ select * into s from public.bic_import_sessions where id=p_session for update;
+ if not found then return; end if;
+ if s.workspace_id is null then
+   if s.owner_id<>v_uid then raise exception 'Import permission required' using errcode='42501'; end if;
+ else
+   if public.bic_role(s.workspace_id) not in ('admin','uploader') or public.bic_role(s.workspace_id) is null then
+     raise exception 'Upload permission required' using errcode='42501';
+   end if;
+ end if;
+ delete from public.bic_import_sessions where id=p_session;
+end;
+$;
+
+revoke all on function public.bic_abort_import(uuid) from public,anon;
+grant execute on function public.bic_abort_import(uuid) to authenticated;
 revoke all on function public.bic_begin_import(uuid,text,text,integer,text,jsonb) from public,anon;
 revoke all on function public.bic_append_import_batch(uuid,integer,jsonb) from public,anon;
 revoke all on function public.bic_complete_import(uuid) from public,anon;
