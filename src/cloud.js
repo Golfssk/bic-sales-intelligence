@@ -464,6 +464,7 @@ export function initCloud(api) {
       const issues = {};
       const sourceTotals = {};
       for (const item of [...items].sort((a,b) => String(a.period_key).localeCompare(String(b.period_key)))) {
+        const itemStart = rows.length;
         for (let start = 0; start < item.row_count; start += 1000) {
           if (gen !== generation) return;
           const { data, error } = await activeClient.from("bic_sales_rows").select("payload")
@@ -472,7 +473,7 @@ export function initCloud(api) {
           if (!data.length) throw Error("ข้อมูลไม่ครบหรือไม่มีสิทธิ์เข้าถึง");
           rows.push(...data.map(x => x.payload));
         }
-        if (rows.length < item.row_count) throw Error("จำนวนแถวไม่ตรงกับชุดข้อมูล");
+        if (rows.length - itemStart !== item.row_count) throw Error("จำนวนแถวไม่ตรงกับชุดข้อมูล");
         for (const [k,v] of Object.entries(item.meta?.issues || {})) issues[k]=(issues[k]||0)+(Number(v)||0);
         for (const [k,v] of Object.entries(item.meta?.schema?.sourceTotals || {})) {
           if (Number.isFinite(v)) sourceTotals[k]=(sourceTotals[k]||0)+v;
