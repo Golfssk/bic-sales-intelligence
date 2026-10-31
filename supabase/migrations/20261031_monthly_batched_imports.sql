@@ -159,7 +159,7 @@ $$;
 
 
 create or replace function public.bic_abort_import(p_session uuid)
-returns void language plpgsql security definer set search_path='' as $
+returns void language plpgsql security definer set search_path='' as $$
 declare s public.bic_import_sessions%rowtype; v_uid uuid:=auth.uid();
 begin
  select * into s from public.bic_import_sessions where id=p_session for update;
@@ -173,7 +173,7 @@ begin
  end if;
  delete from public.bic_import_sessions where id=p_session;
 end;
-$;
+$$;
 
 revoke all on function public.bic_abort_import(uuid) from public,anon;
 grant execute on function public.bic_abort_import(uuid) to authenticated;
