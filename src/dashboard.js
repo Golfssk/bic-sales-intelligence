@@ -679,9 +679,17 @@ import { normalizeUnitRows, conversionSummary } from "./unit-conversion.js";
   function buckets() {
     const mode = $("period").value,
       map = new Map();
+    const bucketKey = (r) => {
+      if (mode === "hourly") return r.hour;
+      if (mode === "weekday") return r.day;
+      if (mode === "daily") return r.date;
+      const [year, month] = r.date.split("-").map(Number);
+      if (mode === "monthly") return `${year}-${pad(month)}`;
+      return `${year}-Q${Math.floor((month - 1) / 3) + 1}`;
+    };
     for (const r of filtered) {
       if (mode === "hourly" && r.hour === null) continue;
-      const k = mode === "hourly" ? r.hour : mode === "daily" ? r.date : r.day;
+      const k = bucketKey(r);
       if (!map.has(k)) map.set(k, []);
       map.get(k).push(r);
     }
@@ -694,29 +702,43 @@ import { normalizeUnitRows, conversionSummary } from "./unit-conversion.js";
           last = keys.indexOf(active.at(-1));
         keys = keys.slice(first, last + 1);
       } else keys = [];
-    } else if (mode === "weekday")
+    } else if (mode === "weekday") {
       keys = [1, 2, 3, 4, 5, 6, 0].filter(
         (k) => $("weekday").value === "all" || k === +$("weekday").value,
       );
-    else {
-      keys = [];
-      if (filtered.length) {
-        let min = Infinity,
-          max = -Infinity;
-        for (const r of filtered) {
-          min = Math.min(min, r.ms);
-          max = Math.max(max, r.ms);
-        }
+    } else if (filtered.length) {
+      let min = Infinity, max = -Infinity;
+      for (const r of filtered) {
+        min = Math.min(min, r.ms);
+        max = Math.max(max, r.ms);
+      }
+      if (mode === "daily") {
+        keys = [];
         for (let t = min; t <= max; t += DAY) {
           const d = new Date(t);
-          if (
-            $("weekday").value === "all" ||
-            d.getUTCDay() === +$("weekday").value
-          )
+          if ($("weekday").value === "all" || d.getUTCDay() === +$("weekday").value)
             keys.push(iso(d));
         }
+      } else {
+        const first = new Date(min), last = new Date(max);
+        let cursor = mode === "monthly"
+          ? Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), 1)
+          : Date.UTC(first.getUTCFullYear(), Math.floor(first.getUTCMonth() / 3) * 3, 1);
+        const end = mode === "monthly"
+          ? Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), 1)
+          : Date.UTC(last.getUTCFullYear(), Math.floor(last.getUTCMonth() / 3) * 3, 1);
+        keys = [];
+        while (cursor <= end) {
+          const d = new Date(cursor), year = d.getUTCFullYear(), month = d.getUTCMonth() + 1;
+          keys.push(mode === "monthly"
+            ? `${year}-${pad(month)}`
+            : `${year}-Q${Math.floor((month - 1) / 3) + 1}`);
+          cursor = mode === "monthly"
+            ? Date.UTC(year, month, 1)
+            : Date.UTC(year, month + 2, 1);
+        }
       }
-    }
+    } else keys = [];
     return keys.map((k) => ({
       key: k,
       label:
@@ -724,7 +746,11 @@ import { normalizeUnitRows, conversionSummary } from "./unit-conversion.js";
           ? pad(k) + ":00"
           : mode === "weekday"
             ? weekfull[k]
-            : dateText(k),
+            : mode === "daily"
+              ? dateText(k)
+              : mode === "monthly"
+                ? new Intl.DateTimeFormat("th-TH", { month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(k + "-01T00:00:00Z"))
+                : `ไตรมาส ${k.slice(-1)}/${k.slice(0, 4)}`,
       s: map.has(k) ? aggregate(map.get(k)) : null,
     }));
   }
@@ -949,6 +975,8 @@ import { normalizeUnitRows, conversionSummary } from "./unit-conversion.js";
       mode = {
         hourly: "รายชั่วโมง",
         daily: "รายวัน",
+        monthly: "รายเดือน",
+        quarterly: "รายไตรมาส",
         weekday: "รวมตามวันในสัปดาห์",
       }[$("period").value];
     $("metricTitle").textContent = `${title} · ${mode}`;
