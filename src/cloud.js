@@ -456,7 +456,8 @@ export function initCloud(api) {
   async function openSnapshots(items, dialog) {
     if (busy || !items.length) return;
     if (items.length > 12) { message("เลือกได้ไม่เกิน 12 เดือนต่อครั้ง", true); return; }
-    const periods = items.map(x => x.period_key).filter(Boolean);
+    if (items.some(x => !x.period_key)) { message("Dataset เก่าบางชุดมีข้อมูลหลายเดือนหรือระบุเดือนไม่ได้ กรุณาเปิดแยกชุดหรืออัปโหลดใหม่เป็นรายเดือน", true); return; }
+    const periods = items.map(x => x.period_key);
     if (new Set(periods).size !== periods.length) { message("เลือก Dataset ซ้ำเดือน กรุณาเลือกเวอร์ชันเดียวต่อเดือน", true); return; }
     busy = true;
     const gen = generation, activeClient = client, rows = [];
