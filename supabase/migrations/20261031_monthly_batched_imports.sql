@@ -138,14 +138,9 @@ begin
  end if;
  if v_id is not null then
    if not exists(select 1 from public.bic_imports where id=v_id and row_count=s.expected_rows and period_key=s.period_key)
-      or exists(
-        select 1 from public.bic_import_session_rows incoming
-        full join public.bic_sales_rows existing
-          on existing.import_id=v_id and existing.id=(
-            select id from public.bic_sales_rows where import_id=v_id order by id offset incoming.row_index limit 1
-          )
-        where incoming.session_id=p_session and existing.payload is distinct from incoming.payload
-      )
+      or (select jsonb_agg(payload order by row_index) from public.bic_import_session_rows where session_id=p_session)
+         is distinct from
+         (select jsonb_agg(payload order by id) from public.bic_sales_rows where import_id=v_id)
    then raise exception 'Hash collision or mismatched data'; end if;
    update public.bic_imports set activated_at=clock_timestamp(),name=s.name,meta=s.meta where id=v_id;
  else
