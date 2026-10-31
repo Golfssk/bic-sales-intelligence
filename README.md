@@ -35,7 +35,7 @@ The base schema and `supabase/migrations/20261030_bi_workspaces.sql` have been a
 
 No old-project records or Auth users are migrated automatically. Do not delete the old project until a deliberate migration has been verified.
 
-## Import → automatic Cloud save → latest-only display
+## Import → staged monthly Cloud save → cross-month analysis
 
 - Sign in, then choose Excel/CSV. Valid real data automatically uploads; no separate Save click is needed.
 - Open **สถานะข้อมูล** and wait for **CLOUD · บันทึกชุดล่าสุดแล้ว** before closing the page. Reading a file successfully is not confirmation that it reached Cloud.
@@ -44,7 +44,7 @@ No old-project records or Auth users are migrated automatically. Do not delete t
 - New uploads replace the active view; historical snapshots are retained separately, never added to the current totals.
 - Opening/reloading the app or returning to its tab checks for the latest Cloud snapshot. It is not a continuously updating realtime subscription.
 - Stale browser caches are never automatically pushed based on device timestamps.
-- Data library shows only the latest snapshot. Delete permanently removes that snapshot and its rows; the preceding historical snapshot can then become latest.
+- Data library lists monthly snapshots (up to the most recent 120). Select one version per month and analyze up to 12 months together. Delete permanently removes the selected snapshot and its rows; the preceding historical version can then become available.
 - Normalized row content is hashed for deduplication per account. Reuploading the same dataset reactivates the existing snapshot.
 - Cloud capacity: **250,000 rows per monthly Dataset**. Uploads use **2,000-row batches** (each batch remains below the RPC payload bound); the browser no longer sends a 250k-row JSON payload in one request. Local file limit: 40 MB.
 - Each Cloud Dataset is restricted to one document-date month (`YYYY-MM`). Monthly snapshots remain separate and independently versioned. Data library can select up to 12 distinct months and load them into one analysis session; this combines rows in memory for reporting and never rewrites or adds one month into another stored Dataset.
