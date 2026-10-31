@@ -6,7 +6,7 @@ create table if not exists public.bic_imports (
  owner_id uuid not null references auth.users(id) on delete cascade,
  name text not null check (length(name) between 1 and 255),
  content_hash text not null check(content_hash ~ '^[0-9a-f]{64}$'),
- row_count integer not null check(row_count between 1 and 25000),
+ row_count integer not null check(row_count between 1 and 250000),
  meta jsonb not null default '{}'::jsonb,
  created_at timestamptz not null default now(),
  unique(owner_id,content_hash)
@@ -39,7 +39,7 @@ begin
  if p_hash is null or p_hash !~ '^[0-9a-f]{64}$' then raise exception 'Invalid content hash'; end if;
  if jsonb_typeof(p_rows) is distinct from 'array' then raise exception 'Rows must be an array'; end if;
  v_count:=jsonb_array_length(p_rows);
- if v_count not between 1 and 25000 then raise exception 'Import must contain 1–25000 rows'; end if;
+ if v_count not between 1 and 250000 then raise exception 'Import must contain 1–250000 rows'; end if;
  if octet_length(p_rows::text)>5242880 then raise exception 'Payload exceeds 5 MB; split the file'; end if;
  if jsonb_typeof(p_meta) is distinct from 'object' or octet_length(p_meta::text)>32768 then raise exception 'Invalid metadata'; end if;
  if exists(select 1 from jsonb_array_elements(p_rows) r where
