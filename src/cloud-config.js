@@ -25,9 +25,10 @@ export function uploadProblem(data) {
     if (controls.some(([field,expected])=>!data.rows.every(r=>Number.isFinite(sourceFieldValue(r,field))) || Math.abs(data.rows.reduce((s,r)=>s+sourceFieldValue(r,field),0)-expected)>.05))
       return "ยอดรวมแถวจริงไม่ตรงหรือข้อมูลไม่ครบเทียบกับสรุปท้ายไฟล์ จึงยังไม่แทนชุด Cloud เดิม กรุณาตรวจผล Reconciliation";
   }
-  if (data.rows.length > 25000)
-    return "Cloud รองรับไม่เกิน 25,000 รายการต่อชุด กรุณาแบ่งไฟล์";
-  if (new TextEncoder().encode(JSON.stringify(data.rows)).byteLength > 4_900_000)
-    return "ข้อมูล Cloud เกินขนาด 4.9 MB กรุณาแบ่งไฟล์";
+  if (data.rows.length > 250000)
+    return "Cloud รองรับไม่เกิน 250,000 รายการต่อ Dataset";
+  const periods = new Set(data.rows.map((row) => String(row.date || "").slice(0, 7)));
+  if (periods.size !== 1 || !/^\\d{4}-(0[1-9]|1[0-2])$/.test([...periods][0] || ""))
+    return "กรุณาแยกข้อมูลเป็น Dataset รายเดือน โดยแต่ละชุดต้องมีวันที่อยู่ในเดือนเดียวกัน";
   return null;
 }
