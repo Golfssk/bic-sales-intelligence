@@ -15,6 +15,6 @@ describe('Project migration and safe automatic upload',()=>{
 });
 describe('Source footer upload gate',()=>{
  it('blocks mismatches rather than replacing the latest Cloud snapshot',()=>expect(uploadProblem({rows:[{inc:107,date:'2026-10-01'}],schema:{sourceTotals:{inc:214}},issues:{summary:1}})).toContain('ไม่แทนชุด Cloud เดิม'));
- it('permits matching independent footer controls',()=>expect(uploadProblem({rows:[{inc:107}],schema:{sourceTotals:{inc:107}},issues:{summary:1}})).toBeNull());
+ it('permits matching independent footer controls',()=>expect(uploadProblem({rows:[{inc:107,date:'2026-10-01'}],schema:{sourceTotals:{inc:107}},issues:{summary:1}})).toBeNull());
  it('does not label incomplete optional numeric fields a matching control',()=>expect(uploadProblem({rows:[{disc:null,date:'2026-10-01'}],schema:{sourceTotals:{disc:0}},issues:{summary:1}})).toContain('ข้อมูลไม่ครบ'));
 });
