@@ -85,6 +85,7 @@ Header must appear within the first 50 rows. Duplicate headers are rejected.
 - Per-day KPIs use selected calendar days, including days without rows, with the weekday filter applied.
 - Previous-window comparisons use an equal number of days only if the loaded date extent covers the prior window; rates use percentage points (pp).
 - Missing chart buckets are null, not zero. Variance uses the arithmetic mean of calculable bucket values. Weekday charts show totals, not per-day averages.
+- Sales Rhythm supports hourly, daily, monthly and quarterly aggregation. Monthly/quarterly buckets follow the document date, include empty periods as null, and do not alter the global date/store/Group/transaction filters or sales formulas.
 - TC may overlap across product/time groups, so group counts are not additive.
 - Share uses signed filtered net sales before table search and can be negative or exceed 100%.
 - Return reason uses the cancellation-note field on Y and is not independently verified.
