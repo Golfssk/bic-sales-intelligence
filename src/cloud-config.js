@@ -28,7 +28,7 @@ export function uploadProblem(data) {
   if (data.rows.length > 250000)
     return "Cloud รองรับไม่เกิน 250,000 รายการต่อ Dataset";
   const periods = new Set(data.rows.map((row) => String(row.date || "").slice(0, 7)));
-  if (periods.size !== 1 || !/^\\d{4}-(0[1-9]|1[0-2])$/.test([...periods][0] || ""))
+  if (periods.size !== 1 || !/^\d{4}-(0[1-9]|1[0-2])$/.test([...periods][0] || ""))
     return "กรุณาแยกข้อมูลเป็น Dataset รายเดือน โดยแต่ละชุดต้องมีวันที่อยู่ในเดือนเดียวกัน";
   return null;
 }
