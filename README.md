@@ -25,7 +25,7 @@ The app opens with the latest dataset for the signed-in account, or an empty vie
 
 ## One-time account setup (administrator)
 
-The base schema and `supabase/migrations/20261030_bi_workspaces.sql` have been applied to the project above. Do not rerun base setup on an existing database. For a brand-new empty database only, run `setup.sql` then the migration, in that order.
+The base schema and `supabase/migrations/20261030_bi_workspaces.sql` have been applied to the project above. Do not rerun base setup on an existing database. For a brand-new empty database only, run `setup.sql`, then `20261030_bi_workspaces.sql`, then `20261031_monthly_batched_imports.sql`, in that order. Existing databases apply only the new monthly/batch migration after the workspace migration.
 
 1. Supabase project → **Authentication → Users → Add user → Create new user**.
 2. Choose the intended user's email and a strong password. Confirm the email only for an identity the administrator has verified. This is not an email invitation or OTP flow.
@@ -35,7 +35,7 @@ The base schema and `supabase/migrations/20261030_bi_workspaces.sql` have been a
 
 No old-project records or Auth users are migrated automatically. Do not delete the old project until a deliberate migration has been verified.
 
-## Import → automatic Cloud save → latest-only display
+## Import → staged monthly Cloud save → cross-month analysis
 
 - Sign in, then choose Excel/CSV. Valid real data automatically uploads; no separate Save click is needed.
 - Open **สถานะข้อมูล** and wait for **CLOUD · บันทึกชุดล่าสุดแล้ว** before closing the page. Reading a file successfully is not confirmation that it reached Cloud.
@@ -44,9 +44,11 @@ No old-project records or Auth users are migrated automatically. Do not delete t
 - New uploads replace the active view; historical snapshots are retained separately, never added to the current totals.
 - Opening/reloading the app or returning to its tab checks for the latest Cloud snapshot. It is not a continuously updating realtime subscription.
 - Stale browser caches are never automatically pushed based on device timestamps.
-- Data library shows only the latest snapshot. Delete permanently removes that snapshot and its rows; the preceding historical snapshot can then become latest.
+- Data library lists monthly snapshots (up to the most recent 120). Select one version per month and analyze up to 12 months together. Delete permanently removes the selected snapshot and its rows; the preceding historical version can then become available.
 - Normalized row content is hashed for deduplication per account. Reuploading the same dataset reactivates the existing snapshot.
-- Cloud limits: **25,000 rows** and **4.9 MB normalized JSON** per snapshot. Local file limit: 40 MB.
+- Cloud capacity: **250,000 rows per monthly Dataset**. Uploads use **2,000-row batches** (each batch remains below the RPC payload bound); the browser no longer sends a 250k-row JSON payload in one request. Local file limit: 40 MB.
+- Each Cloud Dataset is restricted to one document-date month (`YYYY-MM`). Monthly snapshots remain separate and independently versioned. Data library can select up to 12 distinct months and load them into one analysis session; this combines rows in memory for reporting and never rewrites or adds one month into another stored Dataset.
+- The default page restore remains the most recently activated single monthly Dataset. Use **Data library → select months → Analyze selected months** for cross-month reporting. Choose only one version for each month.
 - Original Excel/CSV files are not stored in Supabase Storage; validated normalized records are stored in Postgres.
 - Test credentials and synthetic data in browser mocks are not real production accounts. Real cross-device acceptance requires a provisioned account.
 
@@ -54,7 +56,8 @@ No old-project records or Auth users are migrated automatically. Do not delete t
 
 - `bic_imports`: owner, name, hash, row count, metadata.
 - `bic_sales_rows`: normalized JSONB line items linked to a snapshot.
-- `bic_ingest`: bounded, atomic RPC. Assigns owner from `auth.uid()`, never a caller-supplied owner.
+- `bic_begin_import`, `bic_append_import_batch`, and `bic_complete_import`: authenticated staged-upload RPCs. Each batch is limited to 2,000 rows; the final snapshot is activated only after all expected row indexes are present and verified. The previous active snapshot remains intact when upload fails. Owner is always derived from `auth.uid()`; team uploads additionally require admin/uploader role.
+- Incomplete staging sessions are private to their owner/workspace and can be aborted by the uploader. Staging tables have RLS enabled and no direct client grants.
 - RLS restricts reads/deletes to the authenticated owner. Direct row inserts/updates are denied.
 - Anonymous users cannot read or write Cloud records.
 - Deleting a snapshot cascades to its rows.

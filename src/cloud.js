@@ -1,7 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import baseSQL from "../supabase/setup.sql?raw";
 import teamSQL from "../supabase/migrations/20261030_bi_workspaces.sql?raw";
-const setupSQL=baseSQL+"\n"+teamSQL;
+import monthlySQL from "../supabase/migrations/20261031_monthly_batched_imports.sql?raw";
+const setupSQL=baseSQL+"\n"+teamSQL+"\n"+monthlySQL;
 import { PROJECT_URL, PROJECT_CONFIG, pickProjectConfig, uploadProblem } from "./cloud-config.js";
 const STORAGE = "bic.project.v1";
 export function validateConfig(c) {
@@ -114,12 +115,12 @@ export function initCloud(api) {
     const gen = generation, activeClient = client;
     let query = activeClient
       .from("bic_imports")
-      .select("id,name,row_count,meta,content_hash,created_at,activated_at,workspace_id,owner_id");
+      .select("id,name,row_count,meta,content_hash,period_key,created_at,activated_at,workspace_id,owner_id");
     query = workspace ? query.eq("workspace_id",workspace.id) : query.is("workspace_id",null);
     const {data,error} = await query
       .order("activated_at", { ascending: false })
       .order("id", { ascending: false })
-      .limit(1);
+      .limit(120);
     if (error) throw error;
     if (gen !== generation) return [];
     library = data;
@@ -452,71 +453,85 @@ export function initCloud(api) {
       }
     }
   }
+  async function openSnapshots(items, dialog) {
+    if (busy || !items.length) return;
+    if (items.length > 12) { message("เลือกได้ไม่เกิน 12 เดือนต่อครั้ง", true); return; }
+    if (items.some(x => !x.period_key)) { message("Dataset เก่าบางชุดมีข้อมูลหลายเดือนหรือระบุเดือนไม่ได้ กรุณาเปิดแยกชุดหรืออัปโหลดใหม่เป็นรายเดือน", true); return; }
+    const periods = items.map(x => x.period_key);
+    if (new Set(periods).size !== periods.length) { message("เลือก Dataset ซ้ำเดือน กรุณาเลือกเวอร์ชันเดียวต่อเดือน", true); return; }
+    busy = true;
+    const gen = generation, activeClient = client, rows = [];
+    updateUI();
+    try {
+      const issues = {};
+      const sourceTotals = {};
+      for (const item of [...items].sort((a,b) => String(a.period_key).localeCompare(String(b.period_key)))) {
+        const itemStart = rows.length;
+        for (let start = 0; start < item.row_count; start += 1000) {
+          if (gen !== generation) return;
+          const { data, error } = await activeClient.from("bic_sales_rows").select("payload")
+            .eq("import_id", item.id).order("id", {ascending:true}).range(start,start+999);
+          if (error) throw error;
+          if (!data.length) throw Error("ข้อมูลไม่ครบหรือไม่มีสิทธิ์เข้าถึง");
+          rows.push(...data.map(x => x.payload));
+        }
+        if (rows.length - itemStart !== item.row_count) throw Error("จำนวนแถวไม่ตรงกับชุดข้อมูล");
+        for (const [k,v] of Object.entries(item.meta?.issues || {})) issues[k]=(issues[k]||0)+(Number(v)||0);
+        for (const [k,v] of Object.entries(item.meta?.schema?.sourceTotals || {})) {
+          if (Number.isFinite(v)) sourceTotals[k]=(sourceTotals[k]||0)+v;
+        }
+      }
+      const expected = items.reduce((n,x)=>n+x.row_count,0);
+      if (rows.length !== expected) throw Error("จำนวนแถวรวมไม่ตรงกับ Dataset ที่เลือก");
+      if (gen !== generation) return;
+      const sorted = [...items].sort((a,b)=>String(a.period_key).localeCompare(String(b.period_key)));
+      api.loadData({rows,source:sorted.map(x=>x.period_key || x.name).join(" + "),origin:"cloud",
+        cachedAt:new Date().toISOString(),issues,schema:{...(sorted[0]?.meta?.schema || {}),sourceTotals}});
+      lastRows=api.getData().rows; currentId=null; saveFailed=false;
+      window.dispatchEvent(new CustomEvent("bic:snapshot",{detail:{monthly:true,imports:items}}));
+      dialog?.close();
+      message("รวมข้อมูลรายเดือนที่เลือกแล้ว · Dashboard วิเคราะห์ข้ามเดือนได้");
+    } catch(e) { if(gen===generation) message(errorText(e),true); }
+    finally { if(gen===generation){busy=false;updateUI();} }
+  }
   async function libraryDialog() {
-    if (!client) {
-      setupDialog();
-      return;
-    }
-    if (!user) {
-      authDialog();
-      return;
-    }
-    const d = makeDialog("Latest dataset.");
+    if (!client) { setupDialog(); return; }
+    if (!user) { authDialog(); return; }
+    const d = makeDialog("Monthly datasets");
     const content = el("div", "กำลังโหลด…", "dialog-copy");
     d.append(content);
     try {
       await refreshLibrary();
       content.replaceChildren();
-      if (!library.length)
-        content.append(
-          el("p", "ยังไม่มีข้อมูล Cloud · เลือกไฟล์จริงเพื่ออัปโหลดอัตโนมัติ"),
-        );
+      if (!library.length) content.append(el("p","ยังไม่มีข้อมูล Cloud · เลือกไฟล์รายเดือนเพื่ออัปโหลด"));
+      const selected = new Set();
       for (const item of library) {
-        const box = el("div", undefined, "cloud-list-item");
-        box.append(
-          el("div", item.name, "cloud-list-title"),
-          el(
-            "div",
-            `${item.row_count.toLocaleString()} รายการ · ${new Date(item.activated_at || item.created_at).toLocaleString("th-TH")}`,
-            "cloud-list-meta",
-          ),
-        );
-        const actions = el("div", undefined, "cloud-list-actions"),
-          open = el("button", "Open dataset", "btn primary"),
-          remove = el("button", "Delete", "btn danger-button");
-        open.onclick = () => openSnapshot(item, d);
-        remove.onclick = async () => {
-          if (busy || !confirm(`ลบ “${item.name}” และทุกรายการในชุดถาวร?`))
-            return;
-          remove.disabled = true;
-          try {
-            const { data, error } = await client
-              .from("bic_imports")
-              .delete()
-              .eq("id", item.id)
-              .select("id");
-            if (error) throw error;
-            if (!data.length) throw Error("ไม่พบชุดข้อมูลหรือไม่มีสิทธิ์ลบ");
-            if (currentId === item.id) {
-              api.clearData();
-              currentId = null;
-            }
-            box.remove();
-            message("ลบชุดข้อมูลจาก Cloud แล้ว");
-            updateUI();
-          } catch (e) {
-            message(errorText(e), true);
-            remove.disabled = false;
-          }
+        const box=el("div",undefined,"cloud-list-item");
+        const period=item.period_key || "ไม่ระบุเดือน";
+        const check=el("input"); check.type="checkbox"; check.setAttribute("aria-label","เลือก "+period);
+        check.onchange=()=>check.checked?selected.add(item.id):selected.delete(item.id);
+        box.append(check,el("div",item.name,"cloud-list-title"),
+          el("div",`${period} · ${item.row_count.toLocaleString()} rows · ${new Date(item.activated_at || item.created_at).toLocaleString("th-TH")}`,"cloud-list-meta"));
+        const actions=el("div",undefined,"cloud-list-actions"),open=el("button","Open month","btn primary"),
+          remove=el("button","Delete","btn danger-button");
+        open.onclick=()=>openSnapshot(item,d);
+        remove.onclick=async()=>{
+          if(busy||!confirm(`ลบ “${item.name}” และทุกรายการในชุดถาวร?`))return;
+          remove.disabled=true;
+          try{
+            const {data,error}=await client.from("bic_imports").delete().eq("id",item.id).select("id");
+            if(error)throw error;if(!data.length)throw Error("ไม่พบชุดข้อมูลหรือไม่มีสิทธิ์ลบ");
+            if(currentId===item.id){api.clearData();currentId=null;}
+            box.remove();selected.delete(item.id);message("ลบ Dataset แล้ว");updateUI();
+          }catch(e){message(errorText(e),true);remove.disabled=false;}
         };
-        actions.append(open);
-        if(!workspace || workspace.role==='admin') actions.append(remove);
-        box.append(actions);
-        content.append(box);
+        actions.append(open);if(!workspace||workspace.role==="admin")actions.append(remove);
+        box.append(actions);content.append(box);
       }
-    } catch (e) {
-      content.textContent = errorText(e);
-    }
+      const combine=el("button","Analyze selected months","btn primary");
+      combine.onclick=()=>openSnapshots(library.filter(x=>selected.has(x.id)),d);
+      content.append(combine,el("p","เลือกได้สูงสุด 12 เดือน · ระบบรวมแถวเพื่อวิเคราะห์ข้ามเดือน โดยไม่แก้ไข Dataset ต้นฉบับ","small"));
+    } catch(e){content.textContent=errorText(e);}
   }
   $("cloudSetup").onclick = setupDialog;
   $("cloudLibrary").onclick = libraryDialog;
@@ -568,22 +583,36 @@ export function initCloud(api) {
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
       if (gen !== generation) return;
-      const { data: id, error } = await activeClient.rpc(workspace ? "bic_ingest_team" : "bic_ingest", {
-        ...(workspace ? {p_workspace:workspace.id} : {}),
-        p_name: d.source.slice(0, 255),
-        p_hash: hash,
-        p_rows: d.rows,
-        p_meta: { issues: d.issues, schema: d.schema },
+      const periodKey = String(d.rows[0]?.date || "").slice(0,7);
+      const {data: sessionId,error: beginError}=await activeClient.rpc("bic_begin_import",{
+        p_workspace:workspace?.id || null,p_name:d.source.slice(0,255),p_hash:hash,
+        p_expected_rows:d.rows.length,p_period_key:periodKey,p_meta:{issues:d.issues,schema:d.schema}
       });
-      if (error) throw error;
+      if(beginError)throw beginError;
+      try {
+        for(let offset=0;offset<d.rows.length;offset+=2000){
+          if(gen!==generation)throw Error("Session changed during upload");
+          const {error}=await activeClient.rpc("bic_append_import_batch",{
+            p_session:sessionId,p_offset:offset,p_rows:d.rows.slice(offset,offset+2000)
+          });
+          if(error)throw error;
+          message(`กำลังอัปโหลด ${Math.min(offset+2000,d.rows.length).toLocaleString()} / ${d.rows.length.toLocaleString()} rows…`);
+        }
+        const {data:id,error}=await activeClient.rpc("bic_complete_import",{p_session:sessionId});
+        if(error)throw error;
+        if(gen!==generation)return;
       if (gen !== generation) return;
       if (api.getData().rows === d.rows) {
         currentId = id;
         window.dispatchEvent(new CustomEvent('bic:snapshot',{detail:{id,name:d.source,owner_id:user.id,row_count:d.rows.length,activated_at:new Date().toISOString()}}));
         api.markCloudSaved?.(d.rows, new Date().toISOString());
         message(
-          "บันทึกชุดล่าสุดบน Cloud แล้ว · เปิดเว็บครั้งหน้าจะใช้ชุดนี้ ไม่รวมชุดเก่า",
+          `บันทึก Dataset เดือน ${periodKey} บน Cloud แล้ว · สามารถเลือกหลายเดือนเพื่อวิเคราะห์รวมได้`,
         );
+      }
+      } catch(uploadError) {
+        await activeClient.rpc("bic_abort_import",{p_session:sessionId}).catch(()=>{});
+        throw uploadError;
       }
     } catch (e) {
       if (gen === generation) {
