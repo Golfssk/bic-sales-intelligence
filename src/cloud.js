@@ -1,7 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import baseSQL from "../supabase/setup.sql?raw";
 import teamSQL from "../supabase/migrations/20261030_bi_workspaces.sql?raw";
-const setupSQL=baseSQL+"\n"+teamSQL;
+import monthlySQL from "../supabase/migrations/20261031_monthly_batched_imports.sql?raw";
+const setupSQL=baseSQL+"\n"+teamSQL+"\n"+monthlySQL;
 import { PROJECT_URL, PROJECT_CONFIG, pickProjectConfig, uploadProblem } from "./cloud-config.js";
 const STORAGE = "bic.project.v1";
 export function validateConfig(c) {
