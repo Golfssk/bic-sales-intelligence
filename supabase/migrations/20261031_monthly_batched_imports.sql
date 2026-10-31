@@ -45,6 +45,7 @@ begin
  if v_user is null then raise exception 'Sign in required' using errcode='42501'; end if;
  if p_name is null or length(p_name) not between 1 and 255 then raise exception 'Invalid filename'; end if;
  if p_workspace is null then
+   null;
  else
    if public.bic_role(p_workspace) not in ('admin','uploader') or public.bic_role(p_workspace) is null then
      raise exception 'Upload permission required' using errcode='42501';
