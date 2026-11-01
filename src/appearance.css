@@ -10,3 +10,37 @@ html[data-appearance="light"] :is(.card,.panel,.bi-card,.metric-card){color:var(
 .appearance-toggle{position:fixed;right:18px;bottom:18px;z-index:1000;border:1px solid var(--line);border-radius:999px;padding:11px 16px;background:var(--surface);color:var(--ink);box-shadow:0 5px 24px #0002;cursor:pointer;font:600 13px Arial,Thai,sans-serif}
 .appearance-toggle:focus-visible{outline:3px solid var(--brand-active);outline-offset:3px}
 @media(max-width:650px){.appearance-toggle{right:12px;bottom:12px;padding:10px 12px}}
+
+/* Explicit light component palette: the existing dashboard has hard-coded dark surfaces. */
+html[data-appearance="light"] body.ux-workbench .main{background:#f5f7fa}
+html[data-appearance="light"] body.ux-workbench .sidebar{background:#fff}
+html[data-appearance="light"] body.ux-workbench .ux-nav-button{color:#64748b}
+html[data-appearance="light"] body.ux-workbench .ux-nav-button svg{color:#64748b}
+html[data-appearance="light"] body.ux-workbench .ux-nav-button:hover{background:#edf2f7;color:#17212b}
+html[data-appearance="light"] body.ux-workbench .ux-nav-button.is-active{background:#e6f4ec;color:#145c36;border-color:#b8dec7}
+html[data-appearance="light"] body.ux-workbench .ux-nav-button.is-open{background:#edf2f7;color:#145c36}
+html[data-appearance="light"] body.ux-workbench .ux-collapse{border-color:#cbd5e1;color:#344254}
+html[data-appearance="light"] body.ux-workbench :is(.ux-header-button,.ux-status-button,.ux-view-filter,.btn,.tab,.search){background:#fff;color:#344254;border-color:#cbd5e1}
+html[data-appearance="light"] body.ux-workbench .ux-primary{background:#16a34a;color:#fff;border-color:#16a34a}
+html[data-appearance="light"] body.ux-workbench .ux-view-button{background:transparent;color:#475569}
+html[data-appearance="light"] body.ux-workbench .ux-view-button.is-active{color:#17212b}
+html[data-appearance="light"] body.ux-workbench .ux-active-context{background:#eaf5ee;color:#173b2a;border-color:#b8dec7}
+html[data-appearance="light"] body.ux-workbench .ux-active-context button{background:#fff;color:#173b2a;border-color:#b8dec7}
+html[data-appearance="light"] body.ux-workbench .kpi,html[data-appearance="light"] body.ux-workbench .kpi:first-child{background:#fff;color:#17212b;border-color:#dce3ea;box-shadow:0 2px 8px #1e293b0a}
+html[data-appearance="light"] body.ux-workbench .kpi .value{color:#17212b}
+html[data-appearance="light"] body.ux-workbench .kpi .label,html[data-appearance="light"] body.ux-workbench .kpi:first-child :is(.sub,.delta:not(.up):not(.down)){color:#475569}
+html[data-appearance="light"] body.ux-workbench .kpi .sub{color:#64748b}
+html[data-appearance="light"] body.ux-workbench :is(.panel,.global-filters,.hour-explore-toolbar,.hour-drill-notice){background:#fff;color:#344254;border-color:#dce3ea}
+html[data-appearance="light"] body.ux-workbench .hour-drill-notice :is(strong,p){color:#344254}
+html[data-appearance="light"] body.ux-workbench .global-filters>.mobile-fold-toggle strong{color:#17212b}
+html[data-appearance="light"] body.ux-workbench .global-filters .field :is(input,select),html[data-appearance="light"] body.ux-workbench .controls select,html[data-appearance="light"] body.ux-workbench .hour-explore-toolbar select{background:#fff;color:#17212b;border-color:#cbd5e1;color-scheme:light}
+html[data-appearance="light"] body.ux-workbench .group-multiselect>summary,html[data-appearance="light"] body.ux-workbench .group-checkbox-menu,html[data-appearance="light"] body.ux-workbench .extra-filter-grid{background:#fff;color:#17212b;border-color:#cbd5e1}
+html[data-appearance="light"] body.ux-workbench .group-checkbox-row:has(input:checked){background:#e6f4ec;color:#145c36}
+html[data-appearance="light"] body.ux-workbench :is(thead,th){background:#edf2f7;color:#475569}
+html[data-appearance="light"] body.ux-workbench th{border-color:#dce3ea}
+html[data-appearance="light"] body.ux-workbench td{color:#344254}
+html[data-appearance="light"] body.ux-workbench tbody tr:hover{background:#f1f5f9}
+html[data-appearance="light"] body.ux-workbench .tab.active{background:#e6f4ec;color:#145c36;border-color:#b8dec7}
+html[data-appearance="light"] body.ux-workbench .filter-summary{color:#64748b}
+html[data-appearance="light"] body.ux-workbench .ux-nav-heading{color:#64748b}
+html[data-appearance="light"] body.ux-workbench .appearance-toggle{background:#fff;color:#17212b;border-color:#cbd5e1}
