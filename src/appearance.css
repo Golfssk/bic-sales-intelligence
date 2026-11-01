@@ -1,0 +1,12 @@
+/* Appearance overrides load after the existing Spotify-inspired theme. */
+:root[data-appearance="light"]{color-scheme:light;--canvas:#f5f7fa;--surface:#fff;--card:#fff;--surface-hover:#edf2f7;--brand:#168a49;--brand-active:#168a49;--accent-text:#137e42;--ink:#17212b;--body:#344254;--muted:#64748b;--line:#dce3ea;--red:#c24150;--green:#168a49;--teal:#167d6b;--gold:#a86b08;--accent:#168a49;--mint:#edf4ef}
+html[data-appearance="light"] body,html[data-appearance="light"] body.ux-workbench{background:var(--canvas);color:var(--body);color-scheme:light}
+html[data-appearance="light"] .sidebar,html[data-appearance="light"] .main{background:#fff;color:var(--body);border:1px solid var(--line)}
+html[data-appearance="light"] .cloud-toolbar{border-bottom-color:var(--line)}
+html[data-appearance="light"] .workspace-name,html[data-appearance="light"] .eyebrow{color:var(--muted)}
+html[data-appearance="light"] .ux-workbench{--ux-bg:var(--canvas);--ux-panel:#fff;--ux-line:var(--line);--ux-muted:var(--muted);--ux-accent:var(--brand-active)}
+html[data-appearance="light"] :is(input,select,textarea){color:var(--ink);background:#fff;border-color:var(--line)}
+html[data-appearance="light"] :is(.card,.panel,.bi-card,.metric-card){color:var(--body)}
+.appearance-toggle{position:fixed;right:18px;bottom:18px;z-index:1000;border:1px solid var(--line);border-radius:999px;padding:11px 16px;background:var(--surface);color:var(--ink);box-shadow:0 5px 24px #0002;cursor:pointer;font:600 13px Arial,Thai,sans-serif}
+.appearance-toggle:focus-visible{outline:3px solid var(--brand-active);outline-offset:3px}
+@media(max-width:650px){.appearance-toggle{right:12px;bottom:12px;padding:10px 12px}}
