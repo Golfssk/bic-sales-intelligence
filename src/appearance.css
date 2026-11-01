@@ -44,3 +44,7 @@ html[data-appearance="light"] body.ux-workbench .tab.active{background:#e6f4ec;c
 html[data-appearance="light"] body.ux-workbench .filter-summary{color:#64748b}
 html[data-appearance="light"] body.ux-workbench .ux-nav-heading{color:#64748b}
 html[data-appearance="light"] body.ux-workbench .appearance-toggle{background:#fff;color:#17212b;border-color:#cbd5e1}
+
+/* Keep appearance control at the upper-right, clear of the page header actions. */
+.appearance-toggle{top:16px;right:16px;bottom:auto}
+@media(max-width:650px){.appearance-toggle{top:10px;right:10px;bottom:auto}}
