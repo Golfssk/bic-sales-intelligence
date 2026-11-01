@@ -12,3 +12,6 @@ initBI(window.BIC_APP);
 import { initWorkbench } from './workbench.js';
 initWorkbench(window.BIC_APP);
 import './spotify.css';
+
+import './appearance.css';
+import './appearance.js';
