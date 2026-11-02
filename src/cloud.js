@@ -89,9 +89,9 @@ export function initCloud(api) {
     $("cloudStatus").textContent = busy
       ? "กำลังทำงาน…"
       : currentId
-        ? "CLOUD · บันทึกชุดล่าสุดแล้ว · เปิดบนมือถือด้วยบัญชีเดียวกัน"
+        ? (workspace ? "CLOUD · "+workspace.name+" · แชร์กับสมาชิกทีมที่มีสิทธิ์แล้ว" : "CLOUD · Private Dataset · มีเพียงบัญชีนี้ที่เห็น")
         : user
-          ? "อัปโหลดอัตโนมัติพร้อมใช้งาน · " + user.email
+          ? (workspace ? "ทีม "+workspace.name+" · "+workspace.role+" · "+user.email : "พื้นที่ส่วนตัว · เลือก Team Workspace เพื่อแชร์ข้อมูล · "+user.email)
           : config
             ? "เข้าสู่ระบบด้วยอีเมลและรหัสผ่านเพื่อใช้ข้อมูลข้ามอุปกรณ์"
             : "ยังไม่ได้เชื่อม Project ใหม่ · ข้อมูลยังอยู่บนเครื่องนี้";
@@ -147,6 +147,23 @@ export function initCloud(api) {
       else localStorage.removeItem('bic.workspace.'+uid);
     }
     if(gen!==generation || user?.id!==uid)return;
+    // A new browser has no local workspace preference. If this account belongs
+    // to exactly one shared workspace, enter it automatically instead of the
+    // empty private library. Never select an arbitrary team when multiple exist.
+    if (!next) {
+      const {data: teams,error: teamError}=await activeClient
+        .from('bic_members').select('workspace_id,role').eq('user_id',uid).limit(2);
+      if(teamError)throw teamError;
+      if(gen!==generation || user?.id!==uid)return;
+      if(teams?.length===1){
+        const team=teams[0];
+        const {data: info,error: infoError}=await activeClient
+          .from('bic_workspaces').select('id,name').eq('id',team.workspace_id).maybeSingle();
+        if(infoError)throw infoError;
+        if(gen!==generation || user?.id!==uid)return;
+        if(info)next={...info,role:team.role};
+      }
+    }
     workspace=next;scopeUser=uid;announceSession();
   }
   async function restoreCloud() {
@@ -503,7 +520,9 @@ export function initCloud(api) {
     try {
       await refreshLibrary();
       content.replaceChildren();
-      if (!library.length) content.append(el("p","ยังไม่มีข้อมูล Cloud · เลือกไฟล์รายเดือนเพื่ออัปโหลด"));
+      if (!library.length) content.append(el("p",workspace
+        ? "ทีมนี้ยังไม่มี Dataset บน Cloud · ให้ Admin/Uploader อัปโหลดลง Team Workspace (ไม่ใช่ Private)"
+        : "ไม่พบ Dataset ในพื้นที่ส่วนตัว · ถ้าต้องการข้อมูลที่เพื่อนร่วมทีมอัปโหลด ให้เลือก Team Workspace ที่เมนู ทีมและเป้าหมาย และขอ Admin เพิ่มบัญชีเป็น Viewer","dialog-copy"));
       const selected = new Set();
       for (const item of library) {
         const box=el("div",undefined,"cloud-list-item");
