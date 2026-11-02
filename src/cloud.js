@@ -81,7 +81,7 @@ export function initCloud(api) {
     save.textContent = !config ? "ตั้งค่า Cloud" : !user ? "เข้าสู่ระบบเพื่ออัปโหลด" : "ลองอัปโหลดอีกครั้ง";
     const viewer = workspace?.role === 'viewer';
     if(viewer) save.hidden=true;
-    $("file").disabled = busy || viewer;
+    $("file").disabled = busy || viewer || !user;
     $("cloudAuth").textContent = user ? "ออกจากระบบ" : "เข้าสู่ระบบ";
     $("cloudAuth").disabled = busy;
     $("cloudSetup").disabled = busy;
@@ -93,7 +93,7 @@ export function initCloud(api) {
         : user
           ? (workspace ? "ทีม "+workspace.name+" · "+workspace.role+" · "+user.email : "พื้นที่ส่วนตัว · เลือก Team Workspace เพื่อแชร์ข้อมูล · "+user.email)
           : config
-            ? "เข้าสู่ระบบด้วยอีเมลและรหัสผ่านเพื่อใช้ข้อมูลข้ามอุปกรณ์"
+            ? (d.origin==='public' ? "PUBLIC DASHBOARD · ดูได้โดยไม่ต้องเข้าสู่ระบบ" : "PUBLIC DASHBOARD · รอ Admin เผยแพร่ Dataset")
             : "ยังไม่ได้เชื่อม Project ใหม่ · ข้อมูลยังอยู่บนเครื่องนี้";
     $("cloudStatus").classList.toggle("connected", !!user);
   };
@@ -166,6 +166,42 @@ export function initCloud(api) {
     }
     workspace=next;scopeUser=uid;announceSession();
   }
+  // Anonymous browsers may read only the snapshot explicitly published by an admin.
+  // Never open private datasets or permit write actions without Supabase Auth.
+  async function restorePublic() {
+    if (!client || user || restoring || busy) return;
+    const gen=generation, activeClient=client;
+    restoring=true;
+    try {
+      const {data: info,error: infoError}=await activeClient.rpc('bic_public_dashboard_info');
+      if(infoError)throw infoError;
+      if(gen!==generation || user)return;
+      if(!info){
+        const d=api.getData();
+        if(d.origin==='public' || d.origin==='cache') api.clearData();
+        message('ยังไม่มีข้อมูลที่ Admin เผยแพร่บน Public Dashboard');
+        return;
+      }
+      const rows=[];
+      for(let offset=0;offset<info.row_count;offset+=1000){
+        const {data,error}=await activeClient.rpc('bic_public_dashboard_rows',{p_offset:offset,p_limit:1000});
+        if(error)throw error;
+        if(gen!==generation || user)return;
+        if(!data?.length)throw Error('Public Dataset ไม่ครบ');
+        rows.push(...data.map(x=>x.payload));
+      }
+      if(rows.length!==info.row_count)throw Error('จำนวนข้อมูล Public ไม่ตรงกับ Dataset');
+      if(gen!==generation || user)return;
+      api.loadData({rows,source:info.name,origin:'public',cachedAt:info.published_at,
+        issues:info.meta?.issues||{},schema:info.meta?.schema||{}});
+      lastRows=api.getData().rows;
+      currentId=null;
+      message('PUBLIC DASHBOARD · แสดงข้อมูลที่ Admin อนุญาตให้เผยแพร่แล้ว');
+      updateUI();
+    } catch(e){
+      if(gen===generation && !user)message('โหลด Public Dashboard ไม่สำเร็จ · '+errorText(e),true);
+    } finally {if(gen===generation)restoring=false}
+  }
   async function restoreCloud() {
     if (restoring || busy || !client || !user) return;
     restoring = true;
@@ -232,6 +268,7 @@ export function initCloud(api) {
       // Auth callbacks must not await another Supabase request inside the auth lock.
       if (event === "SIGNED_OUT") {
         announceSession();
+        setTimeout(restorePublic,0);
       }
       if (event === "SIGNED_IN" && old?.id !== user?.id) {
         if (old && old.id !== user?.id) api.clearData();
@@ -244,8 +281,10 @@ export function initCloud(api) {
     if (error) throw error;
     user = session.session?.user || null;
     updateUI();
-    if(!user) announceSession();
-    if (user) {
+    if(!user) {
+      announceSession();
+      await restorePublic();
+    } else {
       await restoreCloud();
     }
   }
@@ -544,7 +583,34 @@ export function initCloud(api) {
             box.remove();selected.delete(item.id);message("ลบ Dataset แล้ว");updateUI();
           }catch(e){message(errorText(e),true);remove.disabled=false;}
         };
-        actions.append(open);if(!workspace||workspace.role==="admin")actions.append(remove);
+        actions.append(open);
+        if(!workspace||workspace.role==="admin"){
+          const publish=el("button","Publish to Public","btn");
+          publish.type="button";
+          publish.onclick=async()=>{
+            if(!confirm("เผยแพร่ Dataset “"+item.name+"” ("+item.row_count.toLocaleString()+" rows) ให้ทุกคนที่มีลิงก์อ่านข้อมูลได้โดยไม่ต้อง Login? ข้อมูลรายการขายที่ใช้คำนวณจะเข้าถึงได้ด้วย"))return;
+            publish.disabled=true;
+            try{
+              const {error}=await client.rpc('bic_set_public_dashboard',{p_import:item.id});
+              if(error)throw error;
+              message("เผยแพร่ Public Dashboard สำเร็จ · ผู้เปิดลิงก์เว็บไซต์จะเห็นชุดนี้");
+              d.close();
+            }catch(e){message(errorText(e),true);publish.disabled=false;}
+          };
+          const unpublish=el("button","Unpublish","btn");
+          unpublish.type="button";
+          unpublish.onclick=async()=>{
+            if(!confirm("ยกเลิกการเผยแพร่ Public Dashboard ทันที?"))return;
+            unpublish.disabled=true;
+            try{
+              const {error}=await client.rpc('bic_set_public_dashboard',{p_import:null});
+              if(error)throw error;
+              message("ยกเลิก Public Dashboard แล้ว");
+              d.close();
+            }catch(e){message(errorText(e),true);unpublish.disabled=false;}
+          };
+          actions.append(publish,unpublish,remove);
+        }
         box.append(actions);content.append(box);
       }
       const combine=el("button","Analyze selected months","btn primary");
@@ -668,14 +734,15 @@ export function initCloud(api) {
       message("อ่านไฟล์แล้ว แต่ยังไม่ขึ้น Cloud · กรุณาเข้าสู่ระบบ ข้อมูลตอนนี้อยู่บนเครื่องนี้เท่านั้น", true);
   });
   window.addEventListener("focus", () => {
-    if (document.visibilityState === "visible") restoreCloud();
+    if (document.visibilityState === "visible") (user?restoreCloud():restorePublic());
   });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") restoreCloud();
   });
   window.BIC_CLOUD = {
     context:()=>({client,user,workspace,currentId,busy}),
-    refresh:()=>restoreCloud(),
+    refresh:()=>user?restoreCloud():restorePublic(),
+    refreshPublic:()=>restorePublic(),
     open:(item)=>openSnapshot(item,null),
     async restore(id) {
       if(busy||restoring)throw Error('รอ Cloud ทำงานเสร็จก่อนคืนข้อมูล');
