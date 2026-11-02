@@ -39,6 +39,9 @@ export function initLatest(api) {
     try {
       const d = await operation("readonly", (s) => s.get(next));
       if (my !== epoch || api.getData().rows !== ref || ref.length) return;
+      // Public publications must be verified online before display; never
+      // resurrect an unpublished snapshot from IndexedDB.
+      if (d?.origin === "public") return;
       if (d?.rows?.length) api.loadData({ ...d, origin: "cache" });
     } catch {
       warn();
@@ -57,6 +60,10 @@ export function initLatest(api) {
       return;
     }
     if (d.origin === "cache") return;
+    if (d.origin === "public") {
+      operation("readwrite", (s) => s.delete(target)).catch(warn);
+      return;
+    }
     operation("readwrite", (s) =>
       s.put({ ...d, savedAt: d.cachedAt || new Date().toISOString() }, target),
     )
