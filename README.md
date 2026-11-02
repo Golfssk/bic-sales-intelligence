@@ -164,3 +164,21 @@ open the matching item detail view without changing the calculation engine.
 See [UX workbench](docs/UX-WORKBENCH.md) for workflows and keyboard controls.
 Run `node tests/browser-workbench.cjs` and `node tests/browser-mobile.cjs` against
 a local dev server. Set `CHROMIUM_PATH`, `TEST_BASE_URL`, `SMOKE_OUTPUT` as needed.
+
+## Public Dashboard (opt-in, no login for viewers)
+
+Apply `supabase/migrations/20261102_public_dashboard.sql` in the **correct Supabase project** SQL Editor after the workspace migration. This introduces an anonymous **read-only RPC** for a single explicitly published dataset. It does **not** automatically publish old or private datasets, and it does not change RLS on `bic_imports` or `bic_sales_rows`.
+
+1. Sign in as the owner of a **private** dataset, or as an **admin** of its Team Workspace.
+2. Open **Data library** and click **Publish to Public** next to the intended monthly dataset. Review the warning: visitors can retrieve the underlying sales rows as well as see charts.
+3. Open the website URL in a private/incognito browser or scan the QR code. Visitors should see the published dashboard without logging in. To revoke access, the publishing admin can click **Unpublish**.
+
+Only **one dataset at a time** is publicly displayed. The current publication remains accessible until explicitly revoked or the underlying dataset is deleted; uploading a newer dataset alone does not replace it. Publishing is **not** equivalent to anonymizing sales rows. Do not publish sensitive or confidential data without company approval.
+
+### Public dashboard checks
+
+- Signed-out browser: published snapshot and filters work; editing, uploading, deleting are not available.
+- Signed-in Admin: library still shows private/team datasets; publishing and unpublishing work.
+- Anonymous REST access to `bic_imports` and `bic_sales_rows` still fails/returns no data; only public RPCs expose the selected snapshot.
+- Without any publication, signed-out visitors see an empty dashboard with a clear status message.
+- Unpublish and refresh the signed-out browser: dataset disappears; no stale offline/cached copy should remain visible (the app clears cached-public rows when the server confirms unpublish).
