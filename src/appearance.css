@@ -48,3 +48,16 @@ html[data-appearance="light"] body.ux-workbench .appearance-toggle{background:#f
 /* Keep appearance control at the upper-right, clear of the page header actions. */
 .appearance-toggle{top:16px;right:16px;bottom:auto}
 @media(max-width:650px){.appearance-toggle{top:10px;right:10px;bottom:auto}}
+
+/* Header-owned appearance toggle: no floating overlay on mobile. */
+.ux-page-header .appearance-toggle{position:static;inset:auto;display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:9px 12px;box-shadow:none;white-space:nowrap;flex-shrink:0}
+@media(max-width:760px){
+  .ux-page-header{flex-wrap:wrap;align-content:center}
+  .ux-page-header .ux-header-actions{flex:0 0 auto;margin-left:auto}
+  .ux-page-header .appearance-toggle{min-height:40px;padding:8px 10px;font-size:11px}
+  .ux-page-header .ux-status-button{display:none}
+}
+@media(max-width:390px){
+  .ux-page-header .ux-page-heading h2{font-size:19px}
+  .ux-page-header .appearance-toggle{font-size:10px;padding:8px}
+}
