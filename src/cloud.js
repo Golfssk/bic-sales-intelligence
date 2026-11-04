@@ -3,7 +3,7 @@ import baseSQL from "../supabase/setup.sql?raw";
 import teamSQL from "../supabase/migrations/20261030_bi_workspaces.sql?raw";
 import monthlySQL from "../supabase/migrations/20261031_monthly_batched_imports.sql?raw";
 const setupSQL=baseSQL+"\n"+teamSQL+"\n"+monthlySQL;
-import { PROJECT_URL, PROJECT_CONFIG, pickProjectConfig, uploadProblem } from "./cloud-config.js";
+import { PROJECT_URL, PROJECT_CONFIG, pickProjectConfig, uploadProblem, partitionMonthlyRows } from "./cloud-config.js";
 const STORAGE = "bic.project.v1";
 export function validateConfig(c) {
   let url;
@@ -654,50 +654,66 @@ export function initCloud(api) {
     if (d.isDemo || !d.rows.length || currentId) return;
     const problem = uploadProblem(d);
     if (problem) { saveFailed = true; message(problem, true); updateUI(); return; }
-    const json = JSON.stringify(d.rows), gen = generation, activeClient = client;
+    const months = partitionMonthlyRows(d.rows);
+    const gen = generation, activeClient = client;
     busy = true;
     saveFailed = false;
-    message("กำลังอัปโหลดชุดล่าสุด… อย่าปิดหน้านี้จนกว่าจะบันทึกสำเร็จ");
+    message(`กำลังแยกข้อมูล ${months.length} เดือนและอัปโหลดขึ้น Cloud… อย่าปิดหน้านี้จนกว่าจะบันทึกสำเร็จ`);
     updateUI();
+    let savedCount = 0;
+    const savedImports = [];
     try {
-      const hash = Array.from(
-        new Uint8Array(
-          await crypto.subtle.digest("SHA-256", new TextEncoder().encode(json)),
-        ),
-      )
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-      if (gen !== generation) return;
-      const periodKey = String(d.rows[0]?.date || "").slice(0,7);
-      const {data: sessionId,error: beginError}=await activeClient.rpc("bic_begin_import",{
-        p_workspace:workspace?.id || null,p_name:d.source.slice(0,255),p_hash:hash,
-        p_expected_rows:d.rows.length,p_period_key:periodKey,p_meta:{issues:d.issues,schema:d.schema}
-      });
-      if(beginError)throw beginError;
-      try {
-        for(let offset=0;offset<d.rows.length;offset+=2000){
-          if(gen!==generation)throw Error("Session changed during upload");
-          const {error}=await activeClient.rpc("bic_append_import_batch",{
-            p_session:sessionId,p_offset:offset,p_rows:d.rows.slice(offset,offset+2000)
-          });
-          if(error)throw error;
-          message(`กำลังอัปโหลด ${Math.min(offset+2000,d.rows.length).toLocaleString()} / ${d.rows.length.toLocaleString()} rows…`);
+      for (const {periodKey, rows} of months) {
+        if (gen !== generation) return;
+        const json = JSON.stringify(rows);
+        const hash = Array.from(new Uint8Array(
+          await crypto.subtle.digest("SHA-256", new TextEncoder().encode(json))
+        )).map(b => b.toString(16).padStart(2,"0")).join("");
+        if (gen !== generation) return;
+        // The original file footer validates the full source. Never apply its
+        // full-file control totals to a monthly subset on cloud restore.
+        const schema = months.length === 1 ? d.schema
+          : {...d.schema, sourceTotals:{}, monthlySplitFromFile:true};
+        const meta = {issues: months.length === 1 ? d.issues : {}, schema};
+        const {data:sessionId,error:beginError} = await activeClient.rpc("bic_begin_import",{
+          p_workspace:workspace?.id || null,
+          p_name:(months.length === 1 ? d.source : `${d.source} · ${periodKey}`).slice(0,255),
+          p_hash:hash,p_expected_rows:rows.length,p_period_key:periodKey,p_meta:meta
+        });
+        if (beginError) throw beginError;
+        try {
+          for (let offset=0;offset<rows.length;offset+=2000) {
+            if (gen !== generation) throw Error("Session changed during upload");
+            const {error}=await activeClient.rpc("bic_append_import_batch",{
+              p_session:sessionId,p_offset:offset,p_rows:rows.slice(offset,offset+2000)
+            });
+            if(error) throw error;
+            message(`กำลังอัปโหลดเดือน ${periodKey} (${savedCount+1}/${months.length}) · ${Math.min(offset+2000,rows.length).toLocaleString()} / ${rows.length.toLocaleString()} rows…`);
+          }
+          const {data:id,error}=await activeClient.rpc("bic_complete_import",{p_session:sessionId});
+          if(error) throw error;
+          if(gen !== generation) return;
+          savedCount++;
+          savedImports.push({id,period_key:periodKey,row_count:rows.length});
+        } catch(uploadError) {
+          await activeClient.rpc("bic_abort_import",{p_session:sessionId}).catch(()=>{});
+          throw uploadError;
         }
-        const {data:id,error}=await activeClient.rpc("bic_complete_import",{p_session:sessionId});
-        if(error)throw error;
-        if(gen!==generation)return;
-      if (gen !== generation) return;
-      if (api.getData().rows === d.rows) {
-        currentId = id;
-        window.dispatchEvent(new CustomEvent('bic:snapshot',{detail:{id,name:d.source,owner_id:user.id,row_count:d.rows.length,activated_at:new Date().toISOString()}}));
-        api.markCloudSaved?.(d.rows, new Date().toISOString());
-        message(
-          `บันทึก Dataset เดือน ${periodKey} บน Cloud แล้ว · สามารถเลือกหลายเดือนเพื่อวิเคราะห์รวมได้`,
-        );
       }
-      } catch(uploadError) {
-        await activeClient.rpc("bic_abort_import",{p_session:sessionId}).catch(()=>{});
-        throw uploadError;
+      if(gen!==generation)return;
+      if(api.getData().rows===d.rows) {
+        // Preserve the combined dashboard in memory; each monthly dataset is
+        // independently stored and can be combined from the Data library.
+        currentId = months.length === 1 ? savedImports[0].id : null;
+        window.dispatchEvent(new CustomEvent("bic:snapshot",{
+          detail: months.length === 1
+            ? {id:currentId,name:d.source,owner_id:user.id,row_count:d.rows.length,activated_at:new Date().toISOString()}
+            : {monthly:true,imports:savedImports}
+        }));
+        api.markCloudSaved?.(d.rows,new Date().toISOString());
+        message(months.length === 1
+          ? `บันทึก Dataset เดือน ${months[0].periodKey} บน Cloud แล้ว`
+          : `อัปโหลดไฟล์เดียวสำเร็จ · บันทึก ${months.length} Dataset รายเดือน (${months.map(x=>x.periodKey).join(", ")}) · Dashboard ยังคงแสดงข้อมูลทุกเดือน`);
       }
     } catch (e) {
       if (gen === generation) {
