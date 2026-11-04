@@ -56,6 +56,7 @@ export function initCloud(api) {
     pendingSave = false,
     saveFailed = false,
     restoring = false,
+    restoreQueued = false,
     workspace = null,
     scopeUser = null,
     activeGroupHash = null;
@@ -72,6 +73,19 @@ export function initCloud(api) {
       : e.code === "23505"
         ? "ชุดข้อมูลนี้บันทึกแล้ว กรุณาเปิดจาก Data library"
         : e.message || "เชื่อมต่อไม่สำเร็จ";
+  // Private datasets are account-scoped: an unsigned browser must not
+  // misrepresent lack of permission as a zero-sales report.
+  const accessNotice = el("div", undefined, "cloud-access-notice");
+  accessNotice.setAttribute("role", "status");
+  const accessText = el("span");
+  const accessAction = el("button", "เข้าสู่ระบบเพื่อดูข้อมูล", "btn");
+  accessAction.type = "button";
+  accessAction.onclick = () => {
+    if (user) restoreCloud();
+    else authDialog();
+  };
+  accessNotice.append(accessText, accessAction);
+  document.querySelector("main.main")?.prepend(accessNotice);
   const updateUI = () => {
     const d = api.getData();
     if (d.rows !== lastRows) {
@@ -100,6 +114,19 @@ export function initCloud(api) {
             ? (d.origin==='public' ? "PUBLIC DASHBOARD · ดูได้โดยไม่ต้องเข้าสู่ระบบ" : "PUBLIC DASHBOARD · รอ Admin เผยแพร่ Dataset")
             : "ยังไม่ได้เชื่อม Project ใหม่ · ข้อมูลยังอยู่บนเครื่องนี้";
     $("cloudStatus").classList.toggle("connected", !!user);
+    const noRows = !d.rows.length;
+    const showLogin = !user && d.origin !== "public" && noRows;
+    const showRetry = !!user && noRows && !busy;
+    accessNotice.hidden = !(showLogin || showRetry);
+    if (showLogin) {
+      accessText.textContent = "ข้อมูลยอดขายอยู่ใน Private Cloud · เข้าสู่ระบบด้วยบัญชีเดียวกับที่อัปโหลดเพื่อดูข้อมูลบนเครื่องนี้";
+      accessAction.textContent = "เข้าสู่ระบบ";
+    } else if (showRetry) {
+      accessText.textContent = library.length
+        ? "พบ Dataset บน Cloud แต่ยังโหลดไม่สำเร็จ · กดโหลดอีกครั้ง"
+        : "ไม่พบ Dataset ที่บัญชีนี้เข้าถึงได้ · ตรวจสอบบัญชีที่ใช้เข้าสู่ระบบหรือ Team Workspace";
+      accessAction.textContent = "โหลด Cloud อีกครั้ง";
+    }
   };
   const makeDialog = (title) => {
     const d = el("dialog");
@@ -204,10 +231,17 @@ export function initCloud(api) {
       updateUI();
     } catch(e){
       if(gen===generation && !user)message('โหลด Public Dashboard ไม่สำเร็จ · '+errorText(e),true);
-    } finally {if(gen===generation)restoring=false}
+    } finally {
+      if(gen===generation) {
+        restoring=false;
+        if(user) setTimeout(restoreCloud,0);
+      }
+    }
   }
   async function restoreCloud() {
-    if (restoring || busy || !client || !user) return;
+    if (restoring) { if (user) restoreQueued = true; return; }
+    if (busy || !client || !user) return;
+    restoreQueued = false;
     restoring = true;
     const gen = generation, ref = api.getData().rows;
     try {
@@ -237,7 +271,14 @@ export function initCloud(api) {
     } catch (e) {
       if (gen === generation) message(errorText(e), true);
     } finally {
-      if (gen === generation) restoring = false;
+      if (gen === generation) {
+        restoring = false;
+        updateUI();
+        if (restoreQueued && user) {
+          restoreQueued = false;
+          setTimeout(restoreCloud,0);
+        }
+      }
     }
   }
 
@@ -253,6 +294,7 @@ export function initCloud(api) {
     library = [];
     busy = false;
     restoring = false;
+    restoreQueued = false;
     pendingSave = false;
     saveFailed = false;
     if (!c) {
