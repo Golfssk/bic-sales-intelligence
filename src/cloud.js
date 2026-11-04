@@ -57,7 +57,8 @@ export function initCloud(api) {
     saveFailed = false,
     restoring = false,
     workspace = null,
-    scopeUser = null;
+    scopeUser = null,
+    activeGroupHash = null;
   const $ = (id) => document.getElementById(id),
     message = (text, error = false) => {
       const p = el("div", text, "cloud-notice" + (error ? " error" : ""));
@@ -73,6 +74,7 @@ export function initCloud(api) {
     const d = api.getData();
     if (d.rows !== lastRows) {
       currentId = null;
+      activeGroupHash = null;
       lastRows = d.rows;
     }
     const save = $("cloudSave");
@@ -217,9 +219,19 @@ export function initCloud(api) {
         setTimeout(saveLatest, 0);
         return;
       }
-      if (library.length && currentId !== library[0].id &&
-          (d.rows === ref || d.origin === "cache") && d.origin !== "local")
-        await openSnapshot(library[0], null, true);
+      if (library.length && (d.rows === ref || d.origin === "cache") && d.origin !== "local") {
+        const newest = library[0];
+        const groupHash = newest.meta?.schema?.uploadGroupHash;
+        const group = groupHash
+          ? library.filter(x => x.meta?.schema?.uploadGroupHash === groupHash)
+          : [];
+        // Recover all months from the same uploaded file on another device.
+        if (group.length > 1 && group.length <= 12) {
+          if (activeGroupHash !== groupHash) await openSnapshots(group, null);
+        } else if (currentId !== newest.id) {
+          await openSnapshot(newest, null, true);
+        }
+      }
     } catch (e) {
       if (gen === generation) message(errorText(e), true);
     } finally {
@@ -235,6 +247,7 @@ export function initCloud(api) {
     scopeUser = null;
     user = null;
     currentId = null;
+    activeGroupHash = null;
     library = [];
     busy = false;
     restoring = false;
@@ -493,6 +506,7 @@ export function initCloud(api) {
       });
       lastRows = api.getData().rows;
       currentId = item.id;
+      activeGroupHash = null;
       saveFailed = false;
       window.dispatchEvent(new CustomEvent('bic:snapshot',{detail:item}));
       dialog?.close();
@@ -543,7 +557,7 @@ export function initCloud(api) {
       const sorted = [...items].sort((a,b)=>String(a.period_key).localeCompare(String(b.period_key)));
       api.loadData({rows,source:sorted.map(x=>x.period_key || x.name).join(" + "),origin:"cloud",
         cachedAt:new Date().toISOString(),issues,schema:{...(sorted[0]?.meta?.schema || {}),sourceTotals}});
-      lastRows=api.getData().rows; currentId=null; saveFailed=false;
+      lastRows=api.getData().rows; currentId=null; activeGroupHash=null; saveFailed=false;
       window.dispatchEvent(new CustomEvent("bic:snapshot",{detail:{monthly:true,imports:items}}));
       dialog?.close();
       message("รวมข้อมูลรายเดือนที่เลือกแล้ว · Dashboard วิเคราะห์ข้ามเดือนได้");
@@ -656,6 +670,9 @@ export function initCloud(api) {
     if (problem) { saveFailed = true; message(problem, true); updateUI(); return; }
     const months = partitionMonthlyRows(d.rows);
     const gen = generation, activeClient = client;
+    const uploadGroupHash = months.length > 1 ? Array.from(new Uint8Array(
+      await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify(d.rows)))
+    )).map(b => b.toString(16).padStart(2,"0")).join("") : null;
     busy = true;
     saveFailed = false;
     message(`กำลังแยกข้อมูล ${months.length} เดือนและอัปโหลดขึ้น Cloud… อย่าปิดหน้านี้จนกว่าจะบันทึกสำเร็จ`);
@@ -673,7 +690,7 @@ export function initCloud(api) {
         // The original file footer validates the full source. Never apply its
         // full-file control totals to a monthly subset on cloud restore.
         const schema = months.length === 1 ? d.schema
-          : {...d.schema, sourceTotals:{}, monthlySplitFromFile:true};
+          : {...d.schema, sourceTotals:{}, monthlySplitFromFile:true, uploadGroupHash};
         const meta = {issues: months.length === 1 ? d.issues : {}, schema};
         const {data:sessionId,error:beginError} = await activeClient.rpc("bic_begin_import",{
           p_workspace:workspace?.id || null,
@@ -705,6 +722,7 @@ export function initCloud(api) {
         // Preserve the combined dashboard in memory; each monthly dataset is
         // independently stored and can be combined from the Data library.
         currentId = months.length === 1 ? savedImports[0].id : null;
+        activeGroupHash = uploadGroupHash;
         window.dispatchEvent(new CustomEvent("bic:snapshot",{
           detail: months.length === 1
             ? {id:currentId,name:d.source,owner_id:user.id,row_count:d.rows.length,activated_at:new Date().toISOString()}
