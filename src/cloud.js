@@ -557,7 +557,10 @@ export function initCloud(api) {
       const sorted = [...items].sort((a,b)=>String(a.period_key).localeCompare(String(b.period_key)));
       api.loadData({rows,source:sorted.map(x=>x.period_key || x.name).join(" + "),origin:"cloud",
         cachedAt:new Date().toISOString(),issues,schema:{...(sorted[0]?.meta?.schema || {}),sourceTotals}});
-      lastRows=api.getData().rows; currentId=null; activeGroupHash=null; saveFailed=false;
+      lastRows=api.getData().rows; currentId=null;
+      activeGroupHash = items.length > 1 && items.every(x => x.meta?.schema?.uploadGroupHash === items[0].meta?.schema?.uploadGroupHash)
+        ? (items[0].meta?.schema?.uploadGroupHash || null) : null;
+      saveFailed=false;
       window.dispatchEvent(new CustomEvent("bic:snapshot",{detail:{monthly:true,imports:items}}));
       dialog?.close();
       message("รวมข้อมูลรายเดือนที่เลือกแล้ว · Dashboard วิเคราะห์ข้ามเดือนได้");
