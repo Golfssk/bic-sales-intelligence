@@ -65,8 +65,10 @@ export function initCloud(api) {
       $("cloudMessage").replaceChildren(p);
     };
   const errorText = (e) =>
-    ["42P01", "PGRST202", "PGRST205"].includes(e.code)
-      ? "ยังไม่ได้สร้างฐานข้อมูล: เปิด Connect Supabase → Copy setup SQL แล้วรันใน SQL Editor"
+    e.code === "PGRST202"
+      ? "ไม่พบฟังก์ชัน Cloud หรือ API schema cache ยังไม่อัปเดต กรุณาให้ผู้ดูแลตรวจ Supabase migrations (ไม่ต้องรัน Setup SQL ซ้ำ)"
+      : ["42P01", "PGRST205"].includes(e.code)
+        ? "ไม่พบตาราง Cloud กรุณาติดต่อผู้ดูแลระบบให้ตรวจ Supabase migrations"
       : e.code === "23505"
         ? "ชุดข้อมูลนี้บันทึกแล้ว กรุณาเปิดจาก Data library"
         : e.message || "เชื่อมต่อไม่สำเร็จ";
