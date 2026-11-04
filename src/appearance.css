@@ -71,3 +71,8 @@ html[data-appearance="light"] body.ux-workbench .appearance-toggle{background:#f
   .ux-workbench .ux-page-header{padding-block:12px}
   .ux-workbench .ux-page-header .ux-header-actions{flex:1 1 100%;width:100%;justify-content:flex-end}
 }
+
+/* Show Cloud account access prominently when a report is empty. */
+.cloud-access-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;margin:14px 0;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--body);font-size:13px}
+.cloud-access-notice[hidden]{display:none}
+@media(max-width:760px){.cloud-access-notice{flex-direction:column;align-items:stretch}.cloud-access-notice .btn{width:100%}}
