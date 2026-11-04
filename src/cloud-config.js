@@ -12,6 +12,24 @@ export function pickProjectConfig(stored, env) {
   return null;
 }
 
+// A single file may contain multiple document-date months; Cloud stores each month separately.
+export function partitionMonthlyRows(rows) {
+  const groups = new Map();
+  for (const row of rows || []) {
+    const date = String(row.date || "");
+    if (!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(date))
+      throw Error("พบวันที่เอกสารไม่ถูกต้อง กรุณาตรวจวันที่ก่อนอัปโหลด");
+    const month = date.slice(0, 7);
+    if (!groups.has(month)) groups.set(month, []);
+    const group = groups.get(month);
+    group.push(row);
+    if (group.length > 250000)
+      throw Error("เดือน " + month + " มีรายการเกิน 250,000 แถว กรุณาแบ่งข้อมูลเดือนนี้เป็นหลายไฟล์");
+  }
+  return [...groups].sort(([a], [b]) => a.localeCompare(b))
+    .map(([periodKey, monthRows]) => ({ periodKey, rows: monthRows }));
+}
+
 export function uploadProblem(data) {
   if (data.isDemo) return "ข้อมูลจำลองไม่ถูกอัปโหลดขึ้น Cloud";
   if (!data.rows?.length) return "ยังไม่มีข้อมูลจริง กรุณาเลือกไฟล์ Excel / CSV";
@@ -25,10 +43,7 @@ export function uploadProblem(data) {
     if (controls.some(([field,expected])=>!data.rows.every(r=>Number.isFinite(sourceFieldValue(r,field))) || Math.abs(data.rows.reduce((s,r)=>s+sourceFieldValue(r,field),0)-expected)>.05))
       return "ยอดรวมแถวจริงไม่ตรงหรือข้อมูลไม่ครบเทียบกับสรุปท้ายไฟล์ จึงยังไม่แทนชุด Cloud เดิม กรุณาตรวจผล Reconciliation";
   }
-  if (data.rows.length > 250000)
-    return "Cloud รองรับไม่เกิน 250,000 รายการต่อ Dataset";
-  const periods = new Set(data.rows.map((row) => String(row.date || "").slice(0, 7)));
-  if (periods.size !== 1 || !/^\d{4}-(0[1-9]|1[0-2])$/.test([...periods][0] || ""))
-    return "กรุณาแยกข้อมูลเป็น Dataset รายเดือน โดยแต่ละชุดต้องมีวันที่อยู่ในเดือนเดียวกัน";
+  try { partitionMonthlyRows(data.rows); }
+  catch (error) { return error.message; }
   return null;
 }
