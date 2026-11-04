@@ -7,9 +7,9 @@ html[data-appearance="light"] .workspace-name,html[data-appearance="light"] .eye
 html[data-appearance="light"] .ux-workbench{--ux-bg:var(--canvas);--ux-panel:#fff;--ux-line:var(--line);--ux-muted:var(--muted);--ux-accent:var(--brand-active)}
 html[data-appearance="light"] :is(input,select,textarea){color:var(--ink);background:#fff;border-color:var(--line)}
 html[data-appearance="light"] :is(.card,.panel,.bi-card,.metric-card){color:var(--body)}
-.appearance-toggle{position:fixed;right:18px;bottom:18px;z-index:1000;border:1px solid var(--line);border-radius:999px;padding:11px 16px;background:var(--surface);color:var(--ink);box-shadow:0 5px 24px #0002;cursor:pointer;font:600 13px Arial,Thai,sans-serif}
+.appearance-toggle{position:static;z-index:auto;border:1px solid var(--line);border-radius:999px;padding:11px 16px;background:var(--surface);color:var(--ink);box-shadow:0 5px 24px #0002;cursor:pointer;font:600 13px Arial,Thai,sans-serif}
 .appearance-toggle:focus-visible{outline:3px solid var(--brand-active);outline-offset:3px}
-@media(max-width:650px){.appearance-toggle{right:12px;bottom:12px;padding:10px 12px}}
+@media(max-width:650px){.appearance-toggle{padding:10px 12px}}
 
 /* Explicit light component palette: the existing dashboard has hard-coded dark surfaces. */
 html[data-appearance="light"] body.ux-workbench .main{background:#f5f7fa}
@@ -45,9 +45,6 @@ html[data-appearance="light"] body.ux-workbench .filter-summary{color:#64748b}
 html[data-appearance="light"] body.ux-workbench .ux-nav-heading{color:#64748b}
 html[data-appearance="light"] body.ux-workbench .appearance-toggle{background:#fff;color:#17212b;border-color:#cbd5e1}
 
-/* Keep appearance control at the upper-right, clear of the page header actions. */
-.appearance-toggle{top:16px;right:16px;bottom:auto}
-@media(max-width:650px){.appearance-toggle{top:10px;right:10px;bottom:auto}}
 
 /* Header-owned appearance toggle: no floating overlay on mobile. */
 .ux-page-header .appearance-toggle{position:static;inset:auto;display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:9px 12px;box-shadow:none;white-space:nowrap;flex-shrink:0}
@@ -60,4 +57,17 @@ html[data-appearance="light"] body.ux-workbench .appearance-toggle{background:#f
 @media(max-width:390px){
   .ux-page-header .ux-page-heading h2{font-size:19px}
   .ux-page-header .appearance-toggle{font-size:10px;padding:8px}
+}
+
+/* Keep the theme switch inside the header action flow rather than overlaying upload/tools. */
+.ux-workbench .ux-page-header{min-width:0;column-gap:20px;row-gap:12px}
+.ux-workbench .ux-page-header .ux-header-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;min-width:0;gap:8px}
+.ux-workbench .ux-page-header .appearance-toggle{position:static!important;top:auto;right:auto;bottom:auto;left:auto;transform:none;max-width:100%;margin:0}
+@media(min-width:761px) and (max-width:1100px){
+  .ux-workbench .ux-page-header{flex-wrap:wrap;padding-block:16px}
+  .ux-workbench .ux-page-header .ux-header-actions{width:100%}
+}
+@media(max-width:760px){
+  .ux-workbench .ux-page-header{padding-block:12px}
+  .ux-workbench .ux-page-header .ux-header-actions{flex:1 1 100%;width:100%;justify-content:flex-end}
 }
