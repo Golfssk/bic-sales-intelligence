@@ -667,11 +667,20 @@ export function initCloud(api) {
       pendingSave = true;
       return;
     }
-    if(workspace?.role==='viewer'){message('Viewer ดูรายงานได้อย่างเดียว กรุณาให้ Admin/Uploader อัปโหลด',true);return;}
+    if(workspace && workspace.role !== 'admin'){
+      message('การแทนที่ Dataset เก่าของทีมต้องใช้สิทธิ์ Admin เพื่อป้องกันการลบข้อมูลทีมโดยไม่ได้รับอนุญาต',true);
+      return;
+    }
     if (d.isDemo || !d.rows.length || currentId) return;
     const problem = uploadProblem(d);
     if (problem) { saveFailed = true; message(problem, true); updateUI(); return; }
     const months = partitionMonthlyRows(d.rows);
+    if (months.length > 12) {
+      saveFailed = true;
+      message('อัปโหลดได้สูงสุด 12 เดือนต่อไฟล์ กรุณาแบ่งไฟล์ตามปี', true);
+      updateUI();
+      return;
+    }
     const gen = generation, activeClient = client;
     const uploadGroupHash = months.length > 1 ? Array.from(new Uint8Array(
       await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify(d.rows)))
@@ -721,6 +730,15 @@ export function initCloud(api) {
         }
       }
       if(gen!==generation)return;
+      // Delete only after every month completed. Replacement is atomic.
+      message('บันทึกข้อมูลครบแล้ว · กำลังแทนชุด Cloud เดิมด้วยข้อมูลใหม่…');
+      const {data:removedCount,error:replaceError}=await activeClient.rpc('bic_replace_imports',{
+        p_workspace:workspace?.id || null,
+        p_keep_ids:savedImports.map(item=>item.id)
+      });
+      if(replaceError) throw replaceError;
+      if(gen!==generation)return;
+      library=[];
       if(api.getData().rows===d.rows) {
         // Preserve the combined dashboard in memory; each monthly dataset is
         // independently stored and can be combined from the Data library.
@@ -732,9 +750,7 @@ export function initCloud(api) {
             : {monthly:true,imports:savedImports}
         }));
         api.markCloudSaved?.(d.rows,new Date().toISOString());
-        message(months.length === 1
-          ? `บันทึก Dataset เดือน ${months[0].periodKey} บน Cloud แล้ว`
-          : `อัปโหลดไฟล์เดียวสำเร็จ · บันทึก ${months.length} Dataset รายเดือน (${months.map(x=>x.periodKey).join(", ")}) · Dashboard ยังคงแสดงข้อมูลทุกเดือน`);
+        message(`แทนข้อมูล Cloud สำเร็จ · บันทึก ${months.length} Dataset จากไฟล์ใหม่ (${months.map(x=>x.periodKey).join(", ")}) · ลบ Dataset เก่า ${removedCount || 0} ชุดแล้ว`);
       }
     } catch (e) {
       if (gen === generation) {
