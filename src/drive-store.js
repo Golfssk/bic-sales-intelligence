@@ -38,14 +38,28 @@ export function validateSalesSnapshot(snapshot) {
   return snapshot;
 }
 
-function googleError(resp, detail) {
-  let reason = typeof detail === "string" ? detail : detail?.error?.message;
-  if (!reason) reason = "Google Drive API error";
-  if (resp.status === 401) reason = "สิทธิ์ Google Drive หมดอายุ กรุณาเชื่อมต่อบัญชีอีกครั้ง";
-  if (resp.status === 403) reason = "บัญชี Google นี้ไม่มีสิทธิ์ดำเนินการกับโฟลเดอร์ Sales data หรือ Google Drive API ยังไม่เปิดใช้งาน";
-  if (resp.status === 404) reason = "ไม่พบโฟลเดอร์หรือไฟล์ Google Drive ที่อนุญาตให้เข้าถึง";
-  const err = new Error(reason);
-  err.status = resp.status;
+export function googleError(resp, detail) {
+  const status = Number(resp.status);
+  const e = detail && typeof detail === "object" ? (detail.error || detail) : {};
+  const rawReason = String(e?.errors?.[0]?.reason || e?.status || "").slice(0,80);
+  const rawMessage = typeof detail === "string" ? detail : String(e?.message || "");
+  const low = (rawReason + " " + rawMessage).toLowerCase();
+  let reason = rawMessage || "Google Drive API error";
+  if (status === 401) reason = "Google Access Token หมดอายุหรือไม่ถูกต้อง กรุณาเชื่อม Google ใหม่";
+  if (status === 403) {
+    if (/accessnotconfigured|servicedisabled|api has not been used|api is disabled|has not been used in project/.test(low))
+      reason = "Google Drive API ยังไม่ได้ Enable ใน Google Cloud Project ที่สร้าง OAuth Client ID · เปิด APIs & Services → Library → Google Drive API → Enable";
+    else if (/insufficientpermissions|insufficient authentication scopes|access_token_scope_insufficient/.test(low))
+      reason = "Google OAuth ยังไม่ได้รับสิทธิ์ Drive ที่ต้องใช้ · ตรวจ Data Access scopes และอนุญาต Google อีกครั้ง";
+    else if (/forbidden|insufficientfilepermissions|permission|not authorized/.test(low))
+      reason = "บัญชี Google ที่เลือกยังไม่มีสิทธิ์เข้าถึงโฟลเดอร์ Sales data · ตรวจบัญชีที่ลงชื่อเข้าใช้และ Share ของโฟลเดอร์";
+    else reason = "Google Drive ตอบกลับว่าไม่มีสิทธิ์ · ตรวจ Drive API, OAuth consent และสิทธิ์โฟลเดอร์";
+  }
+  if (status === 404) reason = "Google Drive หาโฟลเดอร์ Sales data ไม่พบจากบัญชีที่เลือก · ตรวจว่าบัญชีนี้มีสิทธิ์เข้าถึงโฟลเดอร์";
+  const diagnostic = [status && "HTTP " + status, rawReason && "reason=" + rawReason].filter(Boolean).join(", ");
+  const err = new Error(reason + (diagnostic ? " (" + diagnostic + ")" : ""));
+  err.status = status;
+  err.reason = rawReason;
   return err;
 }
 
@@ -64,6 +78,11 @@ export class DriveSalesStore {
       throw googleError(response,detail);
     }
     return response;
+  }
+  async connectedAccount() {
+    const response = await this.call(API + "/about?fields=user(emailAddress)");
+    const profile = await response.json();
+    return String(profile?.user?.emailAddress || "");
   }
   async verifyFolder(write = false) {
     const fields = "id,name,mimeType,trashed,capabilities(canAddChildren)";
