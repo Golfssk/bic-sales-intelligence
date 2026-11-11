@@ -15,6 +15,13 @@ if (driveEnabled) {
 } else {
   initLatest(window.BIC_APP);
   initCloud(window.BIC_APP);
+  if (import.meta.env.VITE_SALES_BACKEND === "google-drive") {
+    const notice = document.createElement("div");
+    notice.className = "cloud-access-notice";
+    notice.setAttribute("role", "status");
+    notice.textContent = "Google Drive ยังไม่เปิดใช้งาน: รอตั้งค่า Google OAuth Client ID ของบริษัท · ขณะนี้ Dashboard ยังอ่านข้อมูลจาก Supabase เดิม";
+    document.querySelector("main")?.prepend(notice);
+  }
 }
 initMobile();
 import { initBI } from './bi.js';
