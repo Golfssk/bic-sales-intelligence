@@ -142,6 +142,7 @@ export class DriveSalesStore {
       schema:d.schema || {},
       uploadedAt:new Date().toISOString()
     };
+    validateSalesSnapshot(payload);
     const json = new Blob([JSON.stringify(payload)],{type:"application/json"});
     const active = await this.uploadBlob(json,DRIVE_ACTIVE_NAME,found.active?.id || null);
     return {snapshot:payload, active, source};
