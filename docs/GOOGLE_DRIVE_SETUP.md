@@ -4,7 +4,7 @@ Target: https://drive.google.com/drive/folders/1Pk90DjApf0qqJ7pjK6RCMX53xqs0OrJM
 
 ## Implemented
 - Browser imports XLSX/XLS/CSV with the existing sales logic.
-- Google Drive mode uploads the original file to BIC_SALES_SOURCE_CURRENT.xlsx (or corresponding extension) and then writes BIC_SALES_ACTIVE.json.
+- Google Drive mode uploads the original file to a uniquely named BIC_SALES_SOURCE_<timestamp>.xlsx backup (or corresponding extension) and then writes BIC_SALES_ACTIVE.json.
 - Only the active JSON is loaded on another device; previously imported data is never added twice.
 - Short-lived Google OAuth tokens exist only in browser memory. No Drive tokens are stored in localStorage, Supabase, or GitHub.
 - Uses the Google Drive resumable upload API, including files larger than the usual Vercel request limit.
