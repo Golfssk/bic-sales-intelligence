@@ -12,7 +12,7 @@ describe("Google Drive single source of truth",()=>{
     const found = summarizeActiveFiles([
       {name:DRIVE_ACTIVE_NAME,id:"old",modifiedTime:"2026-11-01T00:00:00Z"},
       {name:DRIVE_ACTIVE_NAME,id:"new",modifiedTime:"2026-11-02T00:00:00Z"},
-      {name:DRIVE_SOURCE_PREFIX+".xlsx",id:"excel",modifiedTime:"2026-11-02T00:00:00Z"},
+      {name:DRIVE_SOURCE_PREFIX+"2026-11-02-b7a3.xlsx",id:"excel",modifiedTime:"2026-11-02T00:00:00Z"},
       {name:"unrelated.csv",id:"skip"}
     ]);
     expect(found.active.id).toBe("new");
@@ -38,7 +38,7 @@ describe("Google Drive single source of truth",()=>{
       source:"sales.xlsx",rows:[row],issues:{},schema:{}
     },original);
     expect(upload).toHaveBeenCalledTimes(2);
-    expect(upload.mock.calls[0][1]).toBe(DRIVE_SOURCE_PREFIX+".xlsx");
+    expect(upload.mock.calls[0][1]).toMatch(/^BIC_SALES_SOURCE_.+\.xlsx$/);
     expect(upload.mock.calls[1][1]).toBe(DRIVE_ACTIVE_NAME);
     const payload=JSON.parse(await upload.mock.calls[1][0].text());
     expect(payload.rowCount).toBe(1);
