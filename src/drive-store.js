@@ -3,7 +3,7 @@
 export const DRIVE_FOLDER_ID = "1Pk90DjApf0qqJ7pjK6RCMX53xqs0OrJM";
 export const DRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/" + DRIVE_FOLDER_ID;
 export const DRIVE_ACTIVE_NAME = "BIC_SALES_ACTIVE.json";
-export const DRIVE_SOURCE_PREFIX = "BIC_SALES_SOURCE_CURRENT";
+export const DRIVE_SOURCE_PREFIX = "BIC_SALES_SOURCE_";
 export const DRIVE_SNAPSHOT_FORMAT = "bic.sales.snapshot.v1";
 const API = "https://www.googleapis.com/drive/v3";
 const UPLOAD = "https://www.googleapis.com/upload/drive/v3";
@@ -128,9 +128,12 @@ export class DriveSalesStore {
     await this.verifyFolder(true);
     const files = await this.listFiles();
     const found = summarizeActiveFiles(files);
-    const sourceName = DRIVE_SOURCE_PREFIX + fileNameExtension(originalFile.name);
-    const existingSource = found.sources.find(f => f.name === sourceName);
-    const source = await this.uploadBlob(originalFile,sourceName,existingSource?.id || null);
+    // Immutable source uploads keep the previous active snapshot's Excel
+    // reference intact even if a later upload fails halfway through.
+    const unique = new Date().toISOString().replace(/[:.]/g,"-") + "-" +
+      crypto.randomUUID().slice(0,8);
+    const sourceName = DRIVE_SOURCE_PREFIX + unique + fileNameExtension(originalFile.name);
+    const source = await this.uploadBlob(originalFile,sourceName);
     const payload = {
       format:DRIVE_SNAPSHOT_FORMAT,
       source:d.source,
