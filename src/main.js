@@ -2,10 +2,20 @@ import './base.css';
 import './theme.css';
 import './dashboard.js';
 import { initCloud } from './cloud.js';
+import { initDrive } from './drive.js';
 import { initLatest } from './latest.js';
 import { initMobile } from './mobile.js';
-initLatest(window.BIC_APP);
-initCloud(window.BIC_APP);
+// Keep the existing Supabase dashboard live until the Google OAuth client is
+// configured. Once enabled, Google Drive is the only sales-data source.
+const driveEnabled =
+  import.meta.env.VITE_SALES_BACKEND === "google-drive" &&
+  Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+if (driveEnabled) {
+  initDrive(window.BIC_APP);
+} else {
+  initLatest(window.BIC_APP);
+  initCloud(window.BIC_APP);
+}
 initMobile();
 import { initBI } from './bi.js';
 initBI(window.BIC_APP);
