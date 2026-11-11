@@ -5,6 +5,10 @@ import { uploadProblem } from "./cloud-config.js";
 // consent window; it never saves Google access tokens in browser storage.
 export function initDrive(api) {
   const clientId = String(import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
+  const gis = document.createElement("script");
+  gis.src = "https://accounts.google.com/gsi/client";
+  gis.async = true;
+  document.head.append(gis);
   const $ = (id) => document.getElementById(id);
   let store = null, accessToken = null, expiresAt = 0;
   let busy = false, pendingFile = null, lastRows = api.getData().rows;
@@ -39,7 +43,7 @@ export function initDrive(api) {
     $("cloudSetup").disabled = busy;
     $("cloudSetup").textContent = "Google Drive";
     $("file").disabled = busy || !connected;
-    $("cloudSave").hidden = !(d.origin === "local" && d.rows.length && pendingFile);
+    $("cloudSave").hidden = !(d.origin === "local" && d.rows.length && pendingFile && d.source === pendingFile.name);
     $("cloudSave").disabled = busy || !connected;
     $("cloudSave").textContent = "บันทึกไฟล์ใหม่ลง Google Drive";
     $("cacheStatus").textContent = "ข้อมูลกลางอยู่ใน Google Drive · ทุกเครื่องต้องใช้บัญชี Google ที่เข้าถึงโฟลเดอร์นี้ได้";
@@ -142,7 +146,7 @@ export function initDrive(api) {
     if (busy || !pendingFile || !isConnected()) return;
     const sourceFile = pendingFile;
     const d = api.getData();
-    if (d.origin !== "local" || !d.rows.length || d.isDemo) return;
+    if (d.origin !== "local" || !d.rows.length || d.isDemo || d.source !== sourceFile.name) return;
     const problem = uploadProblem(d);
     if (problem) {setMessage(problem,true);render();return;}
     busy = true;
@@ -180,7 +184,7 @@ export function initDrive(api) {
     const d = api.getData();
     if (d.rows === lastRows) {render();return;}
     lastRows = d.rows;
-    if (d.origin === "local" && d.rows.length && pendingFile && savePending) {
+    if (d.origin === "local" && d.rows.length && pendingFile && d.source === pendingFile.name && savePending) {
       savePending = false;
       setTimeout(saveFile,0);
     }
@@ -199,5 +203,15 @@ export function initDrive(api) {
     setWorkspace:async()=>{throw Error("Drive mode ใช้การแชร์สิทธิ์บน Google Drive ไม่ใช่ Supabase Workspace");}
   };
   window.dispatchEvent(new CustomEvent("bic:cloud-context"));
+  window.addEventListener("focus", () => {
+    if (!isConnected()) {
+      if (accessToken) {
+        store = null; accessToken = null; expiresAt = 0;
+        api.clearData();
+        setMessage("Google Drive session หมดอายุ · กรุณาเชื่อมบัญชีใหม่");
+      }
+    } else if (!busy) restore();
+    render();
+  });
   render();
 }
