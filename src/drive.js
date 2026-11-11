@@ -10,7 +10,7 @@ export function initDrive(api) {
   gis.async = true;
   document.head.append(gis);
   const $ = (id) => document.getElementById(id);
-  let store = null, accessToken = null, expiresAt = 0;
+  let store = null, accessToken = null, expiresAt = 0, accountEmail = "";
   let busy = false, pendingFile = null, lastRows = api.getData().rows;
   let activeId = null, activeModified = null, savePending = false;
 
@@ -51,8 +51,8 @@ export function initDrive(api) {
       ? "GOOGLE DRIVE · กำลังเชื่อมต่อหรือบันทึกข้อมูล"
       : connected
         ? d.origin === "cloud"
-          ? "GOOGLE DRIVE · โหลดข้อมูลชุดล่าสุดแล้ว"
-          : "GOOGLE DRIVE · เชื่อมต่อแล้ว · พร้อมอัปโหลดหรือโหลดชุดล่าสุด"
+          ? "GOOGLE DRIVE · โหลดข้อมูลชุดล่าสุดแล้ว" + (accountEmail ? " · " + accountEmail : "")
+          : "GOOGLE DRIVE · เชื่อมต่อแล้ว" + (accountEmail ? " · " + accountEmail : "") + " · พร้อมอัปโหลดหรือโหลดชุดล่าสุด"
         : "GOOGLE DRIVE · ต้องเชื่อมบัญชี Google ที่ได้รับสิทธิ์";
     $("cloudStatus").classList.toggle("connected", connected);
     notice.hidden = connected && d.rows.length > 0;
@@ -106,6 +106,7 @@ export function initDrive(api) {
 
   function connectGoogle() {
     if (busy) return;
+    accountEmail = "";
     if (!clientId) {
       setMessage("ยังไม่ได้ตั้งค่า Google OAuth Client ID ใน Vercel จึงไม่สามารถเชื่อมบัญชีได้", true);
       return;
@@ -127,13 +128,18 @@ export function initDrive(api) {
         expiresAt = Date.now() + Number(response.expires_in || 3600) * 1000;
         store = new DriveSalesStore(accessToken);
         try {
+          // Try to identify the selected Google account before folder access.
+          // If the Drive API itself is disabled, this also returns the exact
+          // API error reason rather than hiding it behind a generic message.
+          accountEmail = await store.connectedAccount();
           await store.verifyFolder();
           render();
           await restore();
         } catch (error) {
+          const account = accountEmail ? "บัญชีที่เลือก: " + accountEmail + " · " : "ไม่สามารถตรวจบัญชี Google ได้ · ";
           store = null; accessToken = null; expiresAt = 0;
           api.clearData();
-          setMessage("บัญชี Google ไม่มีสิทธิ์อ่านโฟลเดอร์ Sales data หรือยังไม่เปิด Google Drive API · " + error.message,true);
+          setMessage(account + error.message,true);
           render();
         }
       },
