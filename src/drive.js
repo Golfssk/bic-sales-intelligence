@@ -210,7 +210,7 @@ export function initDrive(api) {
         api.clearData();
         setMessage("Google Drive session หมดอายุ · กรุณาเชื่อมบัญชีใหม่");
       }
-    } else if (!busy) restore();
+    } else if (!busy && !(pendingFile && api.getData().origin === "local")) restore();
     render();
   });
   render();
