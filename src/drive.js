@@ -71,10 +71,11 @@ export function initDrive(api) {
     try {
       const active = await store.readActive();
       if (!active) {
-        api.clearData();
+        // A new Drive folder is expected to have no active snapshot. This
+        // is NOT a sign-out and must never wipe a locally parsed Excel file.
         activeId = null;
         activeModified = null;
-        setMessage("ยังไม่พบ BIC_SALES_ACTIVE.json ในโฟลเดอร์ Sales data · กรุณาอัปโหลด Excel ที่เครื่องใดเครื่องหนึ่งก่อน");
+        setMessage("เชื่อม Google Drive สำเร็จแล้ว · ยังไม่มีไฟล์ BIC_SALES_ACTIVE.json ใน Sales data · เลือก Excel เพื่ออัปโหลดครั้งแรกได้เลย");
         return;
       }
       const data = active.snapshot;
@@ -97,7 +98,9 @@ export function initDrive(api) {
       setMessage("อ่านข้อมูล " + data.rowCount.toLocaleString() + " แถวจาก Google Drive สำเร็จ · " + (data.sourceFileName || data.source));
     } catch (error) {
       setMessage("อ่าน Google Drive ไม่สำเร็จ · " + error.message, true);
-      if (error.status === 401) {store=null;accessToken=null;api.clearData();}
+      if (error.status === 401) {
+        store=null;accessToken=null;expiresAt=0;
+      }
     } finally {
       busy = false;
       render();
@@ -138,7 +141,6 @@ export function initDrive(api) {
         } catch (error) {
           const account = accountEmail ? "บัญชีที่เลือก: " + accountEmail + " · " : "ไม่สามารถตรวจบัญชี Google ได้ · ";
           store = null; accessToken = null; expiresAt = 0;
-          api.clearData();
           setMessage(account + error.message,true);
           render();
         }
@@ -213,10 +215,13 @@ export function initDrive(api) {
     if (!isConnected()) {
       if (accessToken) {
         store = null; accessToken = null; expiresAt = 0;
-        api.clearData();
-        setMessage("Google Drive session หมดอายุ · กรุณาเชื่อมบัญชีใหม่");
+        setMessage("Google Drive session หมดอายุ · ข้อมูลที่แสดงยังอยู่ · กรุณาเชื่อมบัญชีใหม่",true);
       }
-    } else if (!busy && !(pendingFile && api.getData().origin === "local")) restore();
+    }
+    // Do not fetch here. The file chooser (and Google OAuth pop-up) fires
+    // window focus before the file input change/parse is finished. A fetch
+    // at this point can clear/overwrite the freshly imported dataset.
+    // Re-sync intentionally through the Load Drive button instead.
     render();
   });
   render();
