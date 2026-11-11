@@ -89,6 +89,11 @@ function initWorkspace(api,onSettings){
  async function load(){
   const token=++generation,c=ctx(),key=(c.user?.id||'')+':'+(c.workspace?.id||'');
   if(ctxKey!==key){ctxKey=key;config=defaultConfig();setMappingOverrides({});onSettings(config);api.refresh()}
+  if(c.mode==='drive'){
+    $('biTeamBody').textContent='Dashboard ใช้ Google Drive เป็นแหล่งข้อมูลยอดขาย · สิทธิ์อ่านและอัปโหลดกำหนดจากการแชร์โฟลเดอร์ Sales data โดยตรง · การจัดการ Team Workspace / เป้าหมายเดิมของ Supabase ยังไม่เชื่อมกับ Drive mode';
+    tell('โหมด Google Drive · จัดการสิทธิ์ผ่าน Google Drive');
+    return;
+  }
   if(!c.user||!c.client){$('biTeamBody').innerHTML='<p>เข้าสู่ระบบก่อนเพื่อเลือกพื้นที่ส่วนตัวหรือทีม · บทบาทตรวจสิทธิ์ที่ฐานข้อมูล ไม่ใช่แค่ซ่อนปุ่ม</p>'+button('biTeamLogin','เข้าสู่ระบบ');$('biTeamLogin').onclick=()=>$('cloudAuth')?.click();tell('ยังไม่ได้เข้าสู่ระบบ');return}
   tell('กำลังโหลดพื้นที่ทำงาน…');
   try{
